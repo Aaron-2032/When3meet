@@ -1,0 +1,57 @@
+You are a senior full-stack engineer.
+
+Build a modern clone of When2Meet with a clean UI.
+Build a website.
+
+Tech stack:
+- Frontend: React + Vite + TailwindCSS
+- Backend: Node.js + Express
+- Database: SQLite
+
+Core features:
+1. Create Event Page
+   - User enters event name
+   - Select date range (start date to end date)
+   - Generate a unique event URL
+
+2. Availability Grid
+   - Display a grid: dates (columns) × hours (rows)
+   - Each cell is clickable and draggable
+   - User can select multiple time slots by dragging
+
+3. User Identification
+   - Prompt user to enter their name before selecting availability
+   - Save availability under that name
+
+4. Data Storage
+   - Store event data and availability in SQLite
+   - Structure:
+     - events (id, name, start_date, end_date)
+     - availability (id, event_id, user_name, datetime, status)
+
+5. Overlay Visualization
+   - Each cell shows how many people are available
+   - Use color intensity to represent number of users
+
+6. Real-time-ish Update
+   - Refresh availability every few seconds (polling is fine)
+
+UI/UX requirements:
+- Clean, modern design (Not ugly like original When2Meet)
+- Rounded corners, soft shadows
+- Smooth hover and drag interactions
+- Color palette: soft blue / purple gradient
+- Mobile responsive
+
+Pages:
+- "/" → create event
+- "/event/:id" → availability grid
+
+Extras (if possible):
+- Highlight best time slots (most people available)
+- Tooltip showing who is available in a slot
+
+Output:
+- Full project structure
+- Backend + frontend code
+- Instructions to run locally
