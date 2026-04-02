@@ -45,4 +45,34 @@
   .secondary-button {
     @apply inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-4 py-2 font-medium text-slate-100 transition hover:bg-white/10;
   }
+
+  /* Grid scroll container — bigger scrollbar on small / touch screens */
+  .grid-scroll-area {
+    @apply overflow-auto;
+  }
+  .grid-scroll-area::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .grid-scroll-area::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 9999px;
+  }
+  .grid-scroll-area::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 9999px;
+  }
+
+  @media (max-width: 640px) {
+    .grid-scroll-area::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .grid-scroll-area::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.35);
+    }
+    .grid-scroll-area::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.08);
+    }
+  }
 }

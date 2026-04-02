@@ -67,6 +67,7 @@ export default function EventPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isBestOpen, setIsBestOpen] = useState(true);
 
   const dragRef = useRef({
     active: false,
@@ -278,6 +279,27 @@ export default function EventPage() {
     });
   }
 
+  function handleSelectAllDay(date) {
+    if (!userName) {
+      setIsNameDialogOpen(true);
+      return;
+    }
+
+    const allSlotsForDay = HOURS.map((h) => buildSlotKey(date, h));
+    const allSelected = allSlotsForDay.every((slot) => selectedSlotsRef.current.has(slot));
+
+    const next = new Set(selectedSlotsRef.current);
+    if (allSelected) {
+      allSlotsForDay.forEach((slot) => next.delete(slot));
+    } else {
+      allSlotsForDay.forEach((slot) => next.add(slot));
+    }
+
+    selectedSlotsRef.current = next;
+    setSelectedSlots(next);
+    persistSelection(next);
+  }
+
   if (loading) {
     return (
       <main className="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 py-10">
@@ -430,7 +452,7 @@ export default function EventPage() {
             </div>
           </div>
 
-          <div className="overflow-auto">
+          <div className="grid-scroll-area">
             <div
               className="grid min-w-[900px]"
               style={{
@@ -441,14 +463,28 @@ export default function EventPage() {
                 Time
               </div>
 
-              {dates.map((date) => (
-                <div
-                  key={date}
-                  className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/95 px-3 py-4 text-center text-sm font-medium text-slate-100 backdrop-blur"
-                >
-                  {formatDateLabel(date)}
-                </div>
-              ))}
+              {dates.map((date) => {
+                const allSlotsForDay = HOURS.map((h) => buildSlotKey(date, h));
+                const allSelected = allSlotsForDay.every((slot) => selectedSlots.has(slot));
+
+                return (
+                  <div
+                    key={date}
+                    className="sticky top-0 z-20 flex flex-col items-center gap-1 border-b border-white/10 bg-slate-950/95 px-2 py-3 text-center backdrop-blur"
+                  >
+                    <span className="text-sm font-medium text-slate-100">
+                      {formatDateLabel(date)}
+                    </span>
+                    <button
+                      className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium text-slate-400 transition hover:border-white/20 hover:bg-white/10 hover:text-slate-200 active:scale-95"
+                      type="button"
+                      onClick={() => handleSelectAllDay(date)}
+                    >
+                      {allSelected ? "Clear day" : "Select all"}
+                    </button>
+                  </div>
+                );
+              })}
 
               {HOURS.flatMap((hour) => {
                 const row = [
@@ -509,27 +545,54 @@ export default function EventPage() {
             </div>
           </section>
 
-          <section className="glass-panel p-5">
-            <h2 className="text-lg font-semibold text-white">Best time slots</h2>
-            <div className="mt-4 space-y-3 text-sm text-slate-300">
-              {maxCount > 0 ? (
-                <>
-                  <p>{maxCount} participant(s) are available in the top slot(s).</p>
-                  {Array.from(bestSlots)
-                    .slice(0, 6)
-                    .map((slot) => (
-                      <div
-                        key={slot}
-                        className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-3 py-2 text-emerald-50"
-                      >
-                        {formatSlotLabel(slot)}
-                      </div>
-                    ))}
-                </>
-              ) : (
-                <p>No availability has been submitted yet.</p>
-              )}
-            </div>
+          <section className="glass-panel overflow-hidden">
+            <button
+              className="flex w-full items-center justify-between p-5 text-left transition hover:bg-white/5"
+              type="button"
+              onClick={() => setIsBestOpen((prev) => !prev)}
+            >
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-white">Best time slots</h2>
+                {maxCount > 0 && (
+                  <span className="rounded-full bg-emerald-400/20 px-2 py-0.5 text-xs font-medium text-emerald-300">
+                    {bestSlots.size}
+                  </span>
+                )}
+              </div>
+              <svg
+                className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isBestOpen ? "rotate-180" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {isBestOpen && (
+              <div className="space-y-3 px-5 pb-5 text-sm text-slate-300">
+                {maxCount > 0 ? (
+                  <>
+                    <p className="text-xs text-slate-400">
+                      {maxCount} participant{maxCount !== 1 ? "s" : ""} available in top slot{bestSlots.size !== 1 ? "s" : ""}
+                    </p>
+                    {Array.from(bestSlots)
+                      .slice(0, 6)
+                      .map((slot) => (
+                        <div
+                          key={slot}
+                          className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-3 py-2 text-emerald-50"
+                        >
+                          {formatSlotLabel(slot)}
+                        </div>
+                      ))}
+                  </>
+                ) : (
+                  <p className="pb-0">No availability has been submitted yet.</p>
+                )}
+              </div>
+            )}
           </section>
         </aside>
       </section>
