@@ -15,6 +15,20 @@ function getStorageKey(eventId) {
   return `when3meet:name:${eventId}`;
 }
 
+function copyToClipboard(text) {
+  if (navigator.clipboard) {
+    return navigator.clipboard.writeText(text);
+  }
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.cssText = "position:fixed;opacity:0";
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand("copy");
+  document.body.removeChild(ta);
+  return Promise.resolve();
+}
+
 function getCellClasses(count, maxCount, isSelected, isBest) {
   if (isSelected) {
     return "border-brand-300 bg-gradient-to-br from-brand-400 to-fuchsia-500 text-white shadow-md shadow-brand-900/40";
@@ -52,6 +66,7 @@ export default function EventPage() {
   const [saveError, setSaveError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const dragRef = useRef({
     active: false,
@@ -70,7 +85,7 @@ export default function EventPage() {
       setPendingName(storedName);
       setIsNameDialogOpen(false);
     } else {
-      setIsNameDialogOpen(true);
+      setIsNameDialogOpen(false); // welcome screen handles this, not the overlay
     }
   }, [id]);
 
@@ -256,6 +271,13 @@ export default function EventPage() {
     setIsNameDialogOpen(false);
   }
 
+  function handleCopyLink() {
+    copyToClipboard(window.location.href).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
   if (loading) {
     return (
       <main className="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 py-10">
@@ -278,6 +300,83 @@ export default function EventPage() {
     );
   }
 
+  // ── Welcome / join screen for first-time visitors ──────────────────────────
+  if (!userName) {
+    const participantNames = [
+      ...new Set(
+        Object.values(eventData?.availability?.usersBySlot || {}).flat(),
+      ),
+    ];
+
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col items-center justify-center gap-6 px-4 py-12">
+        {/* Event card */}
+        <div className="glass-panel w-full space-y-1 p-6 text-center">
+          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+            You&rsquo;re invited
+          </p>
+          <h1 className="mt-2 text-3xl font-bold text-white">
+            {eventData.event.name}
+          </h1>
+          <p className="text-sm text-slate-400">
+            {formatDateLabel(eventData.event.start_date)} &rarr;{" "}
+            {formatDateLabel(eventData.event.end_date)}
+          </p>
+
+          {participantNames.length > 0 && (
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {participantNames.map((name) => (
+                <span
+                  key={name}
+                  className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300"
+                >
+                  {name} ✓
+                </span>
+              ))}
+              <span className="rounded-full bg-slate-800/50 px-3 py-1 text-xs text-slate-500">
+                {participantNames.length} responded
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Join form */}
+        <div className="glass-panel w-full p-6">
+          <h2 className="mb-1 text-lg font-semibold text-white">Enter your name to join</h2>
+          <p className="mb-5 text-sm text-slate-400">
+            You&rsquo;ll be able to mark your availability on the next screen.
+          </p>
+          <form className="space-y-4" onSubmit={handleNameSubmit}>
+            <input
+              autoFocus
+              className="form-input"
+              maxLength={40}
+              placeholder="Your name"
+              value={pendingName}
+              onChange={(e) => setPendingName(e.target.value)}
+            />
+            <button className="primary-button w-full" type="submit">
+              Join &amp; select availability →
+            </button>
+          </form>
+        </div>
+
+        {/* Copy link */}
+        <button
+          className="secondary-button w-full"
+          type="button"
+          onClick={handleCopyLink}
+        >
+          {copied ? "✓ Link copied!" : "📋 Copy invite link"}
+        </button>
+
+        <Link className="text-xs text-slate-600 hover:text-slate-400" to="/">
+          Create your own event
+        </Link>
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[1500px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
       <section className="glass-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
@@ -293,6 +392,13 @@ export default function EventPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={handleCopyLink}
+          >
+            {copied ? "✓ Copied!" : "📋 Copy invite link"}
+          </button>
           <button
             className="secondary-button"
             onClick={() => setIsNameDialogOpen(true)}
