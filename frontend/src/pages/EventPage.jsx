@@ -68,26 +68,26 @@ export default function EventPage() {
   const [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isBestOpen, setIsBestOpen] = useState(true);
+  const [hourStart, setHourStart] = useState(8);
+  const [hourEnd, setHourEnd] = useState(22);
 
-  const dragRef = useRef({
-    active: false,
-    mode: "add",
-    visited: new Set(),
-  });
+  const dragRef = useRef({ active: false, mode: "add", visited: new Set() });
   const selectedSlotsRef = useRef(new Set());
   const isSavingRef = useRef(false);
   const isDraggingRef = useRef(false);
 
+  const visibleHours = useMemo(
+    () => HOURS.filter((h) => h >= hourStart && h <= hourEnd),
+    [hourStart, hourEnd],
+  );
+
   useEffect(() => {
     const storedName = window.localStorage.getItem(getStorageKey(id));
-
     if (storedName) {
       setUserName(storedName);
       setPendingName(storedName);
-      setIsNameDialogOpen(false);
-    } else {
-      setIsNameDialogOpen(false); // welcome screen handles this, not the overlay
     }
+    setIsNameDialogOpen(false);
   }, [id]);
 
   useEffect(() => {
@@ -95,19 +95,11 @@ export default function EventPage() {
 
     async function loadEvent() {
       try {
-        if (!mounted) {
-          return;
-        }
-
-        if (!eventData) {
-          setLoading(true);
-        }
+        if (!mounted) return;
+        if (!eventData) setLoading(true);
 
         const nextEvent = await fetchEvent(id, userName);
-
-        if (!mounted) {
-          return;
-        }
+        if (!mounted) return;
 
         setEventData(nextEvent);
         setError("");
@@ -118,22 +110,15 @@ export default function EventPage() {
           setSelectedSlots(slots);
         }
       } catch (loadError) {
-        if (mounted) {
-          setError(loadError.message);
-        }
+        if (mounted) setError(loadError.message);
       } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+        if (mounted) setLoading(false);
       }
     }
 
     loadEvent();
-
     const interval = window.setInterval(() => {
-      if (!isSavingRef.current) {
-        loadEvent();
-      }
+      if (!isSavingRef.current) loadEvent();
     }, 5000);
 
     return () => {
@@ -143,55 +128,39 @@ export default function EventPage() {
   }, [id, userName]);
 
   useEffect(() => {
-    function handlePointerUp() {
-      finishDrag();
-    }
-
-    window.addEventListener("pointerup", handlePointerUp);
-    return () => window.removeEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointerup", finishDrag);
+    return () => window.removeEventListener("pointerup", finishDrag);
   }, []);
 
   const dates = useMemo(() => {
-    if (!eventData?.event) {
-      return [];
-    }
-
+    if (!eventData?.event) return [];
     return getDatesInRange(eventData.event.start_date, eventData.event.end_date);
   }, [eventData]);
 
   const counts = eventData?.availability?.counts || {};
   const usersBySlot = eventData?.availability?.usersBySlot || {};
-  const maxCount = Object.values(counts).reduce((highest, value) => Math.max(highest, value), 0);
+  const maxCount = Object.values(counts).reduce((h, v) => Math.max(h, v), 0);
   const bestSlots = new Set(
     Object.entries(counts)
-      .filter(([, value]) => value > 0 && value === maxCount)
+      .filter(([, v]) => v > 0 && v === maxCount)
       .map(([slot]) => slot),
   );
 
   async function persistSelection(slotsToSave) {
-    if (!userName) {
-      setIsNameDialogOpen(true);
-      return;
-    }
-
+    if (!userName) { setIsNameDialogOpen(true); return; }
     setSaveError("");
     setIsSaving(true);
     isSavingRef.current = true;
 
     try {
-      await saveAvailability(id, {
-        userName,
-        slots: [...slotsToSave].sort(),
-      });
-
+      await saveAvailability(id, { userName, slots: [...slotsToSave].sort() });
       const refreshed = await fetchEvent(id, userName);
       setEventData(refreshed);
-
       const normalized = new Set(refreshed.userAvailability || []);
       selectedSlotsRef.current = normalized;
       setSelectedSlots(normalized);
-    } catch (persistError) {
-      setSaveError(persistError.message);
+    } catch (e) {
+      setSaveError(e.message);
     } finally {
       setIsSaving(false);
       isSavingRef.current = false;
@@ -199,57 +168,32 @@ export default function EventPage() {
   }
 
   function updateSlot(slot, mode) {
-    if (dragRef.current.visited.has(slot)) {
-      return;
-    }
-
+    if (dragRef.current.visited.has(slot)) return;
     dragRef.current.visited.add(slot);
-
     setSelectedSlots((current) => {
       const next = new Set(current);
-
-      if (mode === "add") {
-        next.add(slot);
-      } else {
-        next.delete(slot);
-      }
-
+      if (mode === "add") next.add(slot); else next.delete(slot);
       selectedSlotsRef.current = next;
       return next;
     });
   }
 
   function startDrag(slot) {
-    if (!userName) {
-      setIsNameDialogOpen(true);
-      return;
-    }
-
+    if (!userName) { setIsNameDialogOpen(true); return; }
     const mode = selectedSlotsRef.current.has(slot) ? "remove" : "add";
-
-    dragRef.current = {
-      active: true,
-      mode,
-      visited: new Set(),
-    };
+    dragRef.current = { active: true, mode, visited: new Set() };
     isDraggingRef.current = true;
     document.body.style.userSelect = "none";
     updateSlot(slot, mode);
   }
 
   function extendDrag(slot) {
-    if (!dragRef.current.active) {
-      return;
-    }
-
+    if (!dragRef.current.active) return;
     updateSlot(slot, dragRef.current.mode);
   }
 
   function finishDrag() {
-    if (!dragRef.current.active) {
-      return;
-    }
-
+    if (!dragRef.current.active) return;
     dragRef.current.active = false;
     dragRef.current.visited = new Set();
     isDraggingRef.current = false;
@@ -259,13 +203,8 @@ export default function EventPage() {
 
   function handleNameSubmit(event) {
     event.preventDefault();
-
     const normalized = pendingName.trim();
-
-    if (!normalized) {
-      return;
-    }
-
+    if (!normalized) return;
     window.localStorage.setItem(getStorageKey(id), normalized);
     setUserName(normalized);
     setPendingName(normalized);
@@ -280,25 +219,39 @@ export default function EventPage() {
   }
 
   function handleSelectAllDay(date) {
-    if (!userName) {
-      setIsNameDialogOpen(true);
-      return;
-    }
-
-    const allSlotsForDay = HOURS.map((h) => buildSlotKey(date, h));
-    const allSelected = allSlotsForDay.every((slot) => selectedSlotsRef.current.has(slot));
-
+    if (!userName) { setIsNameDialogOpen(true); return; }
+    const daySlots = visibleHours.map((h) => buildSlotKey(date, h));
+    const allSelected = daySlots.every((s) => selectedSlotsRef.current.has(s));
     const next = new Set(selectedSlotsRef.current);
-    if (allSelected) {
-      allSlotsForDay.forEach((slot) => next.delete(slot));
-    } else {
-      allSlotsForDay.forEach((slot) => next.add(slot));
-    }
-
+    daySlots.forEach((s) => (allSelected ? next.delete(s) : next.add(s)));
     selectedSlotsRef.current = next;
     setSelectedSlots(next);
     persistSelection(next);
   }
+
+  function handleSelectAll() {
+    if (!userName) { setIsNameDialogOpen(true); return; }
+    const next = new Set(selectedSlotsRef.current);
+    for (const date of dates)
+      for (const hour of visibleHours)
+        next.add(buildSlotKey(date, hour));
+    selectedSlotsRef.current = next;
+    setSelectedSlots(next);
+    persistSelection(next);
+  }
+
+  function handleClearAll() {
+    if (!userName) { setIsNameDialogOpen(true); return; }
+    const empty = new Set();
+    selectedSlotsRef.current = empty;
+    setSelectedSlots(empty);
+    persistSelection(empty);
+  }
+
+  const allVisibleSelected =
+    dates.length > 0 &&
+    visibleHours.length > 0 &&
+    dates.every((date) => visibleHours.every((h) => selectedSlots.has(buildSlotKey(date, h))));
 
   if (loading) {
     return (
@@ -314,44 +267,32 @@ export default function EventPage() {
         <div className="glass-panel w-full space-y-4 p-8">
           <p className="text-lg font-semibold text-white">Unable to load this event</p>
           <p className="text-sm text-slate-300">{error}</p>
-          <Link className="secondary-button" to="/">
-            Create a new event
-          </Link>
+          <Link className="secondary-button" to="/">Create a new event</Link>
         </div>
       </main>
     );
   }
 
-  // ── Welcome / join screen for first-time visitors ──────────────────────────
   if (!userName) {
     const participantNames = [
-      ...new Set(
-        Object.values(eventData?.availability?.usersBySlot || {}).flat(),
-      ),
+      ...new Set(Object.values(eventData?.availability?.usersBySlot || {}).flat()),
     ];
 
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col items-center justify-center gap-6 px-4 py-12">
-        {/* Event card */}
         <div className="glass-panel w-full space-y-1 p-6 text-center">
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
             You&rsquo;re invited
           </p>
-          <h1 className="mt-2 text-3xl font-bold text-white">
-            {eventData.event.name}
-          </h1>
+          <h1 className="mt-2 text-3xl font-bold text-white">{eventData.event.name}</h1>
           <p className="text-sm text-slate-400">
             {formatDateLabel(eventData.event.start_date)} &rarr;{" "}
             {formatDateLabel(eventData.event.end_date)}
           </p>
-
           {participantNames.length > 0 && (
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               {participantNames.map((name) => (
-                <span
-                  key={name}
-                  className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300"
-                >
+                <span key={name} className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300">
                   {name} ✓
                 </span>
               ))}
@@ -362,7 +303,6 @@ export default function EventPage() {
           )}
         </div>
 
-        {/* Join form */}
         <div className="glass-panel w-full p-6">
           <h2 className="mb-1 text-lg font-semibold text-white">Enter your name to join</h2>
           <p className="mb-5 text-sm text-slate-400">
@@ -383,12 +323,7 @@ export default function EventPage() {
           </form>
         </div>
 
-        {/* Copy link */}
-        <button
-          className="secondary-button w-full"
-          type="button"
-          onClick={handleCopyLink}
-        >
+        <button className="secondary-button w-full" type="button" onClick={handleCopyLink}>
           {copied ? "✓ Link copied!" : "📋 Copy invite link"}
         </button>
 
@@ -400,97 +335,134 @@ export default function EventPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[1500px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-      <section className="glass-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <div className="space-y-2">
-          <div className="text-sm text-brand-100">Shared availability board</div>
-          <h1 className="text-2xl font-semibold text-white sm:text-3xl">
-            {eventData.event.name}
-          </h1>
-          <p className="text-sm text-slate-300">
+    <main className="mx-auto flex min-h-screen w-full max-w-[1500px] flex-col gap-4 px-3 py-4 sm:gap-6 sm:px-6 sm:py-6 lg:px-8">
+      {/* Header */}
+      <section className="glass-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <div className="space-y-1">
+          <div className="text-xs text-brand-100 sm:text-sm">Shared availability board</div>
+          <h1 className="text-xl font-semibold text-white sm:text-3xl">{eventData.event.name}</h1>
+          <p className="text-xs text-slate-300 sm:text-sm">
             {formatDateLabel(eventData.event.start_date)} to{" "}
             {formatDateLabel(eventData.event.end_date)}
           </p>
         </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            className="secondary-button"
-            type="button"
-            onClick={handleCopyLink}
-          >
-            {copied ? "✓ Copied!" : "📋 Copy invite link"}
+        <div className="flex flex-wrap items-center gap-2">
+          <button className="secondary-button text-sm" type="button" onClick={handleCopyLink}>
+            {copied ? "✓ Copied!" : "📋 Copy link"}
           </button>
-          <button
-            className="secondary-button"
-            onClick={() => setIsNameDialogOpen(true)}
-            type="button"
-          >
-            {userName ? `You: ${userName}` : "Set your name"}
+          <button className="secondary-button text-sm" type="button" onClick={() => setIsNameDialogOpen(true)}>
+            👤 {userName}
           </button>
-          <Link className="secondary-button" to="/">
-            New event
-          </Link>
+          <Link className="secondary-button text-sm" to="/">＋ New</Link>
         </div>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1fr_300px]">
         <div className="glass-panel overflow-hidden">
-          <div className="border-b border-white/10 px-4 py-4 sm:px-6">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="text-sm text-slate-300">
-                Click or drag across the grid to mark when you are free. Colored cells show how
-                many people are available.
+          {/* Controls */}
+          <div className="border-b border-white/10 px-4 py-3 sm:px-6">
+            <div className="flex flex-col gap-3">
+              {/* Hour range sliders */}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-slate-400">Hour range</span>
+                  <span className="text-xs font-semibold text-slate-200">
+                    {formatHourLabel(hourStart)} – {formatHourLabel(hourEnd)}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] uppercase tracking-wide text-slate-500">From</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={22}
+                      value={hourStart}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        if (v < hourEnd) setHourStart(v);
+                      }}
+                      className="h-3 w-full cursor-pointer accent-brand-500"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] uppercase tracking-wide text-slate-500">To</span>
+                    <input
+                      type="range"
+                      min={1}
+                      max={23}
+                      value={hourEnd}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        if (v > hourStart) setHourEnd(v);
+                      }}
+                      className="h-3 w-full cursor-pointer accent-brand-500"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
-                <span className="rounded-full bg-slate-800/80 px-3 py-1">24-hour view</span>
-                <span className="rounded-full bg-brand-500/20 px-3 py-1">
+
+              {/* Action row */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={allVisibleSelected ? handleClearAll : handleSelectAll}
+                  className="rounded-2xl border border-brand-500/40 bg-brand-500/15 px-4 py-2 text-sm font-medium text-brand-100 transition hover:bg-brand-500/30 active:scale-95"
+                >
+                  {allVisibleSelected ? "✕ Clear all" : "✓ Select all"}
+                </button>
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-400">
+                  {visibleHours.length}h shown
+                </span>
+                <span className="rounded-full border border-brand-500/20 bg-brand-500/10 px-3 py-1 text-xs text-brand-100">
                   Your selection
                 </span>
-                <span className="rounded-full bg-emerald-400/20 px-3 py-1">Best slots</span>
+                <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-200">
+                  Best slots
+                </span>
               </div>
             </div>
           </div>
 
+          {/* Availability grid */}
           <div className="grid-scroll-area">
             <div
-              className="grid min-w-[900px]"
+              className="grid"
               style={{
-                gridTemplateColumns: `88px repeat(${dates.length}, minmax(110px, 1fr))`,
+                gridTemplateColumns: `68px repeat(${dates.length}, minmax(88px, 1fr))`,
+                minWidth: `${68 + dates.length * 88}px`,
               }}
             >
-              <div className="sticky left-0 top-0 z-30 border-b border-r border-white/10 bg-slate-950/95 px-3 py-4 text-xs uppercase tracking-[0.2em] text-slate-400 backdrop-blur">
+              <div className="sticky left-0 top-0 z-30 border-b border-r border-white/10 bg-slate-950/95 px-2 py-3 text-[10px] uppercase tracking-widest text-slate-400 backdrop-blur">
                 Time
               </div>
 
               {dates.map((date) => {
-                const allSlotsForDay = HOURS.map((h) => buildSlotKey(date, h));
-                const allSelected = allSlotsForDay.every((slot) => selectedSlots.has(slot));
-
+                const daySlots = visibleHours.map((h) => buildSlotKey(date, h));
+                const allSelected = daySlots.every((s) => selectedSlots.has(s));
                 return (
                   <div
                     key={date}
-                    className="sticky top-0 z-20 flex flex-col items-center gap-1 border-b border-white/10 bg-slate-950/95 px-2 py-3 text-center backdrop-blur"
+                    className="sticky top-0 z-20 flex flex-col items-center gap-1 border-b border-white/10 bg-slate-950/95 px-1 py-2 text-center backdrop-blur"
                   >
-                    <span className="text-sm font-medium text-slate-100">
-                      {formatDateLabel(date)}
-                    </span>
+                    <span className="text-xs font-medium text-slate-100">{formatDateLabel(date)}</span>
                     <button
-                      className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium text-slate-400 transition hover:border-white/20 hover:bg-white/10 hover:text-slate-200 active:scale-95"
+                      className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium text-slate-400 transition hover:bg-white/15 active:scale-95"
                       type="button"
                       onClick={() => handleSelectAllDay(date)}
                     >
-                      {allSelected ? "Clear day" : "Select all"}
+                      {allSelected ? "Clear" : "All"}
                     </button>
                   </div>
                 );
               })}
 
-              {HOURS.flatMap((hour) => {
+              {visibleHours.flatMap((hour) => {
                 const row = [
                   <div
                     key={`hour-${hour}`}
-                    className="sticky left-0 z-10 border-r border-white/10 bg-slate-950/95 px-3 py-4 text-sm font-medium text-slate-200 backdrop-blur"
+                    className="sticky left-0 z-10 flex items-center border-r border-white/10 bg-slate-950/95 px-2 text-xs font-medium text-slate-200 backdrop-blur"
+                    style={{ minHeight: "60px" }}
                   >
                     {formatHourLabel(hour)}
                   </div>,
@@ -506,25 +478,20 @@ export default function EventPage() {
                   row.push(
                     <button
                       key={slot}
-                      className={`m-1 flex min-h-20 touch-none flex-col items-center justify-center rounded-2xl border text-center text-sm transition ${getCellClasses(
-                        count,
-                        maxCount,
-                        isSelected,
-                        isBest,
-                      )}`}
-                      onPointerDown={(event) => {
-                        event.preventDefault();
-                        startDrag(slot);
-                      }}
+                      className={`m-0.5 flex touch-none flex-col items-center justify-center rounded-xl border text-center transition sm:m-1 sm:rounded-2xl ${getCellClasses(count, maxCount, isSelected, isBest)}`}
+                      style={{ minHeight: "60px" }}
+                      onPointerDown={(e) => { e.preventDefault(); startDrag(slot); }}
                       onPointerEnter={() => extendDrag(slot)}
                       onPointerUp={() => finishDrag()}
                       title={users.length ? `Available: ${users.join(", ")}` : "No one yet"}
                       type="button"
                     >
-                      <span className="text-lg font-semibold">{count}</span>
-                      <span className="px-2 text-[11px] leading-tight opacity-85">
-                        {users.length ? users.join(", ") : "No availability"}
-                      </span>
+                      <span className="text-base font-semibold">{count}</span>
+                      {users.length > 0 && (
+                        <span className="hidden px-1 text-[10px] leading-tight opacity-80 sm:block">
+                          {users.join(", ")}
+                        </span>
+                      )}
                     </button>,
                   );
                 }
@@ -535,11 +502,12 @@ export default function EventPage() {
           </div>
         </div>
 
+        {/* Sidebar */}
         <aside className="space-y-4">
           <section className="glass-panel p-5">
             <h2 className="text-lg font-semibold text-white">Status</h2>
             <div className="mt-4 space-y-3 text-sm text-slate-300">
-              <p>{userName ? `Saving as ${userName}` : "Add your name to start selecting."}</p>
+              <p>Saving as <span className="font-medium text-white">{userName}</span></p>
               <p>{isSaving ? "Saving changes..." : "Changes save automatically after dragging."}</p>
               {saveError ? <p className="text-rose-200">{saveError}</p> : null}
             </div>
@@ -561,10 +529,7 @@ export default function EventPage() {
               </div>
               <svg
                 className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isBestOpen ? "rotate-180" : ""}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
@@ -577,19 +542,17 @@ export default function EventPage() {
                     <p className="text-xs text-slate-400">
                       {maxCount} participant{maxCount !== 1 ? "s" : ""} available in top slot{bestSlots.size !== 1 ? "s" : ""}
                     </p>
-                    {Array.from(bestSlots)
-                      .slice(0, 6)
-                      .map((slot) => (
-                        <div
-                          key={slot}
-                          className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-3 py-2 text-emerald-50"
-                        >
-                          {formatSlotLabel(slot)}
-                        </div>
-                      ))}
+                    {Array.from(bestSlots).slice(0, 6).map((slot) => (
+                      <div
+                        key={slot}
+                        className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-3 py-2 text-emerald-50"
+                      >
+                        {formatSlotLabel(slot)}
+                      </div>
+                    ))}
                   </>
                 ) : (
-                  <p className="pb-0">No availability has been submitted yet.</p>
+                  <p>No availability has been submitted yet.</p>
                 )}
               </div>
             )}
@@ -597,16 +560,14 @@ export default function EventPage() {
         </aside>
       </section>
 
-      {isNameDialogOpen ? (
+      {/* Name dialog */}
+      {isNameDialogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 px-4 backdrop-blur-sm">
           <form className="glass-panel w-full max-w-md p-6" onSubmit={handleNameSubmit}>
-            <div className="space-y-2">
-              <h2 className="text-xl font-semibold text-white">Enter your name</h2>
-              <p className="text-sm text-slate-300">
-                Your availability is saved under this name for this event.
-              </p>
-            </div>
-
+            <h2 className="text-xl font-semibold text-white">Enter your name</h2>
+            <p className="mt-1 text-sm text-slate-300">
+              Your availability is saved under this name for this event.
+            </p>
             <div className="mt-5 space-y-4">
               <input
                 autoFocus
@@ -614,30 +575,24 @@ export default function EventPage() {
                 maxLength={40}
                 placeholder="Alex"
                 value={pendingName}
-                onChange={(event) => setPendingName(event.target.value)}
+                onChange={(e) => setPendingName(e.target.value)}
               />
-
               <div className="flex justify-end gap-3">
-                {userName ? (
+                {userName && (
                   <button
                     className="secondary-button"
-                    onClick={() => {
-                      setPendingName(userName);
-                      setIsNameDialogOpen(false);
-                    }}
                     type="button"
+                    onClick={() => { setPendingName(userName); setIsNameDialogOpen(false); }}
                   >
                     Cancel
                   </button>
-                ) : null}
-                <button className="primary-button" type="submit">
-                  Save name
-                </button>
+                )}
+                <button className="primary-button" type="submit">Save name</button>
               </div>
             </div>
           </form>
         </div>
-      ) : null}
+      )}
     </main>
   );
 }
