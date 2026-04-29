@@ -370,7 +370,7 @@ export default function EventPage() {
               </div>
 
               {dates.map((date) => {
-                const daySlots = visibleHours.map((h) => buildSlotKey(date, h));
+                const daySlots = HOURS.map((h) => buildSlotKey(date, h));
                 const allSelected = daySlots.every((s) => selectedSlots.has(s));
                 return (
                   <div
