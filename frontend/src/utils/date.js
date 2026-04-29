@@ -1,5 +1,7 @@
 export const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 
+const WEEKDAYS_ZH = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
+
 export function toDateInputValue(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -25,22 +27,20 @@ export function buildSlotKey(date, hour) {
 }
 
 export function formatDateLabel(date) {
-  return new Intl.DateTimeFormat(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  }).format(new Date(`${date}T12:00:00`));
+  const d = new Date(`${date}T12:00:00`);
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  return `${month}/${day} ${WEEKDAYS_ZH[d.getDay()]}`;
 }
 
 export function formatHourLabel(hour) {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "numeric",
-    hour12: true,
-  }).format(new Date(2024, 0, 1, hour, 0, 0));
+  if (hour === 0) return "12AM";
+  if (hour === 12) return "12PM";
+  return hour < 12 ? `${hour}AM` : `${hour - 12}PM`;
 }
 
 export function formatSlotLabel(slot) {
   const [date, time] = slot.split("T");
   const hour = Number(time.split(":")[0]);
-  return `${formatDateLabel(date)} at ${formatHourLabel(hour)}`;
+  return `${formatDateLabel(date)} ${formatHourLabel(hour)}`;
 }

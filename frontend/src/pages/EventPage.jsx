@@ -70,6 +70,7 @@ export default function EventPage() {
   const [isBestOpen, setIsBestOpen] = useState(true);
   const [hourStart, setHourStart] = useState(8);
   const [hourEnd, setHourEnd] = useState(22);
+  const [isSelectMode, setIsSelectMode] = useState(true);
 
   const dragRef = useRef({ active: false, mode: "add", visited: new Set() });
   const selectedSlotsRef = useRef(new Set());
@@ -404,12 +405,25 @@ export default function EventPage() {
 
               {/* Action row */}
               <div className="flex flex-wrap items-center gap-2">
+                {/* Scroll / Select mode toggle */}
+                <button
+                  type="button"
+                  onClick={() => setIsSelectMode((prev) => !prev)}
+                  className={`rounded-2xl border px-4 py-2 text-sm font-medium transition active:scale-95 ${
+                    isSelectMode
+                      ? "border-brand-500/60 bg-brand-500/25 text-brand-100"
+                      : "border-white/15 bg-white/5 text-slate-300 hover:bg-white/10"
+                  }`}
+                >
+                  {isSelectMode ? "✏️ 選取中" : "↔️ 滑動中"}
+                </button>
+
                 <button
                   type="button"
                   onClick={allVisibleSelected ? handleClearAll : handleSelectAll}
-                  className="rounded-2xl border border-brand-500/40 bg-brand-500/15 px-4 py-2 text-sm font-medium text-brand-100 transition hover:bg-brand-500/30 active:scale-95"
+                  className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10 active:scale-95"
                 >
-                  {allVisibleSelected ? "✕ Clear all" : "✓ Select all"}
+                  {allVisibleSelected ? "Clear all" : "Select all"}
                 </button>
                 <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-400">
                   {visibleHours.length}h shown
@@ -478,11 +492,11 @@ export default function EventPage() {
                   row.push(
                     <button
                       key={slot}
-                      className={`m-0.5 flex touch-none flex-col items-center justify-center rounded-xl border text-center transition sm:m-1 sm:rounded-2xl ${getCellClasses(count, maxCount, isSelected, isBest)}`}
+                      className={`m-0.5 flex flex-col items-center justify-center rounded-xl border text-center transition sm:m-1 sm:rounded-2xl ${isSelectMode ? "touch-none" : "touch-auto"} ${getCellClasses(count, maxCount, isSelected, isBest)}`}
                       style={{ minHeight: "60px" }}
-                      onPointerDown={(e) => { e.preventDefault(); startDrag(slot); }}
-                      onPointerEnter={() => extendDrag(slot)}
-                      onPointerUp={() => finishDrag()}
+                      onPointerDown={isSelectMode ? (e) => { e.preventDefault(); startDrag(slot); } : undefined}
+                      onPointerEnter={isSelectMode ? () => extendDrag(slot) : undefined}
+                      onPointerUp={isSelectMode ? () => finishDrag() : undefined}
                       title={users.length ? `Available: ${users.join(", ")}` : "No one yet"}
                       type="button"
                     >
