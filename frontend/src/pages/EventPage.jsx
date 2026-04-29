@@ -68,19 +68,12 @@ export default function EventPage() {
   const [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isBestOpen, setIsBestOpen] = useState(true);
-  const [hourStart, setHourStart] = useState(8);
-  const [hourEnd, setHourEnd] = useState(22);
-  const [isSelectMode, setIsSelectMode] = useState(true);
 
   const dragRef = useRef({ active: false, mode: "add", visited: new Set() });
+  const dragMoved = useRef(false);
   const selectedSlotsRef = useRef(new Set());
   const isSavingRef = useRef(false);
   const isDraggingRef = useRef(false);
-
-  const visibleHours = useMemo(
-    () => HOURS.filter((h) => h >= hourStart && h <= hourEnd),
-    [hourStart, hourEnd],
-  );
 
   useEffect(() => {
     const storedName = window.localStorage.getItem(getStorageKey(id));
@@ -183,6 +176,7 @@ export default function EventPage() {
     if (!userName) { setIsNameDialogOpen(true); return; }
     const mode = selectedSlotsRef.current.has(slot) ? "remove" : "add";
     dragRef.current = { active: true, mode, visited: new Set() };
+    dragMoved.current = false;
     isDraggingRef.current = true;
     document.body.style.userSelect = "none";
     updateSlot(slot, mode);
@@ -190,6 +184,7 @@ export default function EventPage() {
 
   function extendDrag(slot) {
     if (!dragRef.current.active) return;
+    dragMoved.current = true;
     updateSlot(slot, dragRef.current.mode);
   }
 
@@ -200,6 +195,16 @@ export default function EventPage() {
     isDraggingRef.current = false;
     document.body.style.userSelect = "";
     persistSelection(selectedSlotsRef.current);
+  }
+
+  function handleTapToggle(slot) {
+    if (dragMoved.current) return;
+    if (!userName) { setIsNameDialogOpen(true); return; }
+    const next = new Set(selectedSlotsRef.current);
+    if (next.has(slot)) next.delete(slot); else next.add(slot);
+    selectedSlotsRef.current = next;
+    setSelectedSlots(next);
+    persistSelection(next);
   }
 
   function handleNameSubmit(event) {
@@ -221,7 +226,7 @@ export default function EventPage() {
 
   function handleSelectAllDay(date) {
     if (!userName) { setIsNameDialogOpen(true); return; }
-    const daySlots = visibleHours.map((h) => buildSlotKey(date, h));
+    const daySlots = HOURS.map((h) => buildSlotKey(date, h));
     const allSelected = daySlots.every((s) => selectedSlotsRef.current.has(s));
     const next = new Set(selectedSlotsRef.current);
     daySlots.forEach((s) => (allSelected ? next.delete(s) : next.add(s)));
@@ -229,30 +234,6 @@ export default function EventPage() {
     setSelectedSlots(next);
     persistSelection(next);
   }
-
-  function handleSelectAll() {
-    if (!userName) { setIsNameDialogOpen(true); return; }
-    const next = new Set(selectedSlotsRef.current);
-    for (const date of dates)
-      for (const hour of visibleHours)
-        next.add(buildSlotKey(date, hour));
-    selectedSlotsRef.current = next;
-    setSelectedSlots(next);
-    persistSelection(next);
-  }
-
-  function handleClearAll() {
-    if (!userName) { setIsNameDialogOpen(true); return; }
-    const empty = new Set();
-    selectedSlotsRef.current = empty;
-    setSelectedSlots(empty);
-    persistSelection(empty);
-  }
-
-  const allVisibleSelected =
-    dates.length > 0 &&
-    visibleHours.length > 0 &&
-    dates.every((date) => visibleHours.every((h) => selectedSlots.has(buildSlotKey(date, h))));
 
   if (loading) {
     return (
@@ -362,79 +343,16 @@ export default function EventPage() {
         <div className="glass-panel overflow-hidden">
           {/* Controls */}
           <div className="border-b border-white/10 px-4 py-3 sm:px-6">
-            <div className="flex flex-col gap-3">
-              {/* Hour range sliders */}
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-400">Hour range</span>
-                  <span className="text-xs font-semibold text-slate-200">
-                    {formatHourLabel(hourStart)} – {formatHourLabel(hourEnd)}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] uppercase tracking-wide text-slate-500">From</span>
-                    <input
-                      type="range"
-                      min={0}
-                      max={22}
-                      value={hourStart}
-                      onChange={(e) => {
-                        const v = Number(e.target.value);
-                        if (v < hourEnd) setHourStart(v);
-                      }}
-                      className="h-3 w-full cursor-pointer accent-brand-500"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] uppercase tracking-wide text-slate-500">To</span>
-                    <input
-                      type="range"
-                      min={1}
-                      max={23}
-                      value={hourEnd}
-                      onChange={(e) => {
-                        const v = Number(e.target.value);
-                        if (v > hourStart) setHourEnd(v);
-                      }}
-                      className="h-3 w-full cursor-pointer accent-brand-500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Action row */}
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Scroll / Select mode toggle */}
-                <button
-                  type="button"
-                  onClick={() => setIsSelectMode((prev) => !prev)}
-                  className={`rounded-2xl border px-4 py-2 text-sm font-medium transition active:scale-95 ${
-                    isSelectMode
-                      ? "border-brand-500/60 bg-brand-500/25 text-brand-100"
-                      : "border-white/15 bg-white/5 text-slate-300 hover:bg-white/10"
-                  }`}
-                >
-                  {isSelectMode ? "✏️ 選取中" : "↔️ 滑動中"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={allVisibleSelected ? handleClearAll : handleSelectAll}
-                  className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10 active:scale-95"
-                >
-                  {allVisibleSelected ? "Clear all" : "Select all"}
-                </button>
-                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-400">
-                  {visibleHours.length}h shown
-                </span>
-                <span className="rounded-full border border-brand-500/20 bg-brand-500/10 px-3 py-1 text-xs text-brand-100">
-                  Your selection
-                </span>
-                <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-200">
-                  Best slots
-                </span>
-              </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-brand-500/20 bg-brand-500/10 px-3 py-1 text-xs text-brand-100">
+                Your selection
+              </span>
+              <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-200">
+                Best slots
+              </span>
+              <span className="ml-auto text-xs text-slate-500">
+                Tap to toggle · Drag to fill
+              </span>
             </div>
           </div>
 
@@ -471,7 +389,7 @@ export default function EventPage() {
                 );
               })}
 
-              {visibleHours.flatMap((hour) => {
+              {HOURS.flatMap((hour) => {
                 const row = [
                   <div
                     key={`hour-${hour}`}
@@ -492,11 +410,12 @@ export default function EventPage() {
                   row.push(
                     <button
                       key={slot}
-                      className={`m-0.5 flex flex-col items-center justify-center rounded-xl border text-center transition sm:m-1 sm:rounded-2xl ${isSelectMode ? "touch-none" : "touch-auto"} ${getCellClasses(count, maxCount, isSelected, isBest)}`}
+                      className={`m-0.5 flex flex-col items-center justify-center rounded-xl border text-center transition sm:m-1 sm:rounded-2xl ${getCellClasses(count, maxCount, isSelected, isBest)}`}
                       style={{ minHeight: "60px" }}
-                      onPointerDown={isSelectMode ? (e) => { e.preventDefault(); startDrag(slot); } : undefined}
-                      onPointerEnter={isSelectMode ? () => extendDrag(slot) : undefined}
-                      onPointerUp={isSelectMode ? () => finishDrag() : undefined}
+                      onPointerDown={(e) => { e.preventDefault(); startDrag(slot); }}
+                      onPointerEnter={() => extendDrag(slot)}
+                      onPointerUp={() => finishDrag()}
+                      onClick={() => handleTapToggle(slot)}
                       title={users.length ? `Available: ${users.join(", ")}` : "No one yet"}
                       type="button"
                     >
