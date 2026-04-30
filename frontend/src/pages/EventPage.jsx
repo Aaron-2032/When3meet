@@ -29,30 +29,24 @@ function copyToClipboard(text) {
   return Promise.resolve();
 }
 
-function getCellClasses(count, maxCount, isSelected, isBest) {
+function getCellClasses(isSelected) {
   if (isSelected) {
     return "border-brand-300 bg-gradient-to-br from-brand-400 to-fuchsia-500 text-white shadow-md shadow-brand-900/40";
   }
+  return "border-white/10 bg-slate-900/60 text-slate-400 hover:bg-slate-800/80";
+}
 
-  if (count === 0 || maxCount === 0) {
-    return "border-white/10 bg-slate-900/60 text-slate-400 hover:bg-slate-800/80";
+function hoursToRanges(hours) {
+  const ranges = [];
+  let start = null;
+  let prev = null;
+  for (const h of hours) {
+    if (start === null) { start = h; prev = h; }
+    else if (h === prev + 1) { prev = h; }
+    else { ranges.push({ start, end: prev }); start = h; prev = h; }
   }
-
-  const ratio = count / maxCount;
-
-  if (ratio >= 1) {
-    return `border-emerald-300/40 bg-emerald-400/40 text-emerald-50 ${isBest ? "ring-2 ring-amber-300/80" : ""}`;
-  }
-
-  if (ratio >= 0.66) {
-    return `border-cyan-300/30 bg-cyan-400/30 text-cyan-50 ${isBest ? "ring-2 ring-amber-300/70" : ""}`;
-  }
-
-  if (ratio >= 0.33) {
-    return `border-violet-300/20 bg-violet-400/25 text-violet-50 ${isBest ? "ring-2 ring-amber-300/60" : ""}`;
-  }
-
-  return `border-white/10 bg-white/10 text-slate-200 ${isBest ? "ring-2 ring-amber-300/50" : ""}`;
+  if (start !== null) ranges.push({ start, end: prev });
+  return ranges;
 }
 
 export default function EventPage() {
@@ -143,6 +137,23 @@ export default function EventPage() {
       .filter(([, v]) => v > 0 && v === maxCount)
       .map(([slot]) => slot),
   );
+
+  const bestByDate = (() => {
+    const map = {};
+    for (const slot of bestSlots) {
+      const [date, time] = slot.split("T");
+      const hour = Number(time.split(":")[0]);
+      if (!map[date]) map[date] = [];
+      map[date].push({ hour, slot });
+    }
+    return Object.entries(map)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, items]) => {
+        const sorted = [...items].sort((a, b) => a.hour - b.hour);
+        const users = [...new Set(sorted.flatMap(({ slot }) => usersBySlot[slot] || []))];
+        return { date, hours: sorted.map((s) => s.hour), users };
+      });
+  })();
 
   async function persistSelection(slotsToSave) {
     if (!userName) { setIsNameDialogOpen(true); return; }
@@ -437,12 +448,11 @@ export default function EventPage() {
                   const count = counts[slot] || 0;
                   const users = usersBySlot[slot] || [];
                   const isSelected = selectedSlots.has(slot);
-                  const isBest = bestSlots.has(slot);
 
                   row.push(
                     <button
                       key={slot}
-                      className={`m-0.5 flex flex-col items-center justify-center rounded-xl border text-center transition sm:m-1 sm:rounded-2xl ${getCellClasses(count, maxCount, isSelected, isBest)}`}
+                      className={`m-0.5 flex flex-col items-center justify-center rounded-xl border text-center transition sm:m-1 sm:rounded-2xl ${getCellClasses(isSelected)}`}
                       style={{ minHeight: "60px" }}
                       onPointerDown={(e) => { e.preventDefault(); startDrag(slot); }}
                       onPointerEnter={() => extendDrag(slot)}
@@ -501,23 +511,46 @@ export default function EventPage() {
             </button>
 
             {isBestOpen && (
-              <div className="space-y-3 px-5 pb-5 text-sm text-slate-300">
+              <div className="space-y-3 px-5 pb-5">
                 {maxCount > 0 ? (
                   <>
                     <p className="text-xs text-slate-400">
-                      {maxCount} participant{maxCount !== 1 ? "s" : ""} available in top slot{bestSlots.size !== 1 ? "s" : ""}
+                      最多 {maxCount} 人同時有空，共 {bestSlots.size} 個時段
                     </p>
-                    {Array.from(bestSlots).slice(0, 6).map((slot) => (
-                      <div
-                        key={slot}
-                        className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-3 py-2 text-emerald-50"
-                      >
-                        {formatSlotLabel(slot)}
+                    {bestByDate.slice(0, 6).map(({ date, hours, users }) => (
+                      <div key={date} className="rounded-2xl border border-emerald-300/20 bg-emerald-400/5 p-3">
+                        <p className="mb-2 text-xs font-semibold text-emerald-300">
+                          {formatDateLabel(date)}
+                        </p>
+                        <div className="mb-2 flex flex-wrap gap-1">
+                          {hoursToRanges(hours).map(({ start, end }) => (
+                            <span
+                              key={start}
+                              className="rounded-lg bg-emerald-400/20 px-2 py-0.5 text-xs font-medium text-emerald-100"
+                            >
+                              {start === end
+                                ? formatHourLabel(start)
+                                : `${formatHourLabel(start)}–${formatHourLabel(end + 1)}`}
+                            </span>
+                          ))}
+                        </div>
+                        {users.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {users.map((name) => (
+                              <span
+                                key={name}
+                                className="rounded-full bg-slate-700/60 px-2 py-0.5 text-[10px] text-slate-300"
+                              >
+                                ✓ {name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </>
                 ) : (
-                  <p>No availability has been submitted yet.</p>
+                  <p className="text-sm text-slate-300">尚無人填寫可用時段。</p>
                 )}
               </div>
             )}
