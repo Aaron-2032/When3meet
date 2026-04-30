@@ -30,6 +30,14 @@ export async function fetchEvent(eventId, userName) {
 
   if (eventError) throw new Error("Event not found.");
 
+  const today = new Date();
+  const todayStr = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0"),
+  ].join("-");
+  const isExpired = event.end_date < todayStr;
+
   const { data: rows, error: availError } = await supabase
     .from("availability")
     .select("user_name, datetime")
@@ -55,6 +63,7 @@ export async function fetchEvent(eventId, userName) {
     event,
     availability: { counts, usersBySlot },
     userAvailability,
+    isExpired,
   };
 }
 

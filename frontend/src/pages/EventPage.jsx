@@ -81,6 +81,7 @@ export default function EventPage() {
   const selectedSlotsRef = useRef(new Set());
   const isSavingRef = useRef(false);
   const isDraggingRef = useRef(false);
+  const isExpiredRef = useRef(false);
 
   useEffect(() => {
     const storedName = window.localStorage.getItem(getStorageKey(id));
@@ -103,6 +104,7 @@ export default function EventPage() {
         if (!mounted) return;
 
         setEventData(nextEvent);
+        isExpiredRef.current = nextEvent.isExpired ?? false;
         setError("");
 
         if (!isDraggingRef.current && !isSavingRef.current) {
@@ -119,7 +121,7 @@ export default function EventPage() {
 
     loadEvent();
     const interval = window.setInterval(() => {
-      if (!isSavingRef.current) loadEvent();
+      if (!isSavingRef.current && !isExpiredRef.current) loadEvent();
     }, 5000);
 
     return () => {
@@ -208,6 +210,7 @@ export default function EventPage() {
   }
 
   function startDrag(slot) {
+    if (isExpiredRef.current) return;
     if (!userName) { setIsNameDialogOpen(true); return; }
     const mode = selectedSlotsRef.current.has(slot) ? "remove" : "add";
     dragRef.current = {
@@ -284,7 +287,7 @@ export default function EventPage() {
   }
 
   function handleSelectAllDay(date) {
-    if (!userName) { setIsNameDialogOpen(true); return; }
+    if (isExpiredRef.current || !userName) { setIsNameDialogOpen(true); return; }
     const daySlots = eventHours.map((h) => buildSlotKey(date, h));
     const allSelected = daySlots.every((s) => selectedSlotsRef.current.has(s));
     const next = new Set(selectedSlotsRef.current);
@@ -295,7 +298,7 @@ export default function EventPage() {
   }
 
   function handleSelectAll() {
-    if (!userName) { setIsNameDialogOpen(true); return; }
+    if (isExpiredRef.current || !userName) { setIsNameDialogOpen(true); return; }
     const allSlots = dates.flatMap((date) => eventHours.map((h) => buildSlotKey(date, h)));
     const allSelected = allSlots.every((s) => selectedSlotsRef.current.has(s));
     const next = new Set(allSelected ? [] : allSlots);
@@ -324,7 +327,9 @@ export default function EventPage() {
     );
   }
 
-  if (!userName) {
+  const isExpired = eventData?.isExpired ?? false;
+
+  if (!userName && !isExpired) {
     const participantNames = [
       ...new Set(Object.values(eventData?.availability?.usersBySlot || {}).flat()),
     ];
@@ -420,25 +425,33 @@ export default function EventPage() {
         </div>
       </section>
 
+      {isExpired && (
+        <div className="rounded-2xl border border-brand-300/40 bg-brand-100 px-4 py-3 text-sm text-brand-600">
+          此活動已於 <span className="font-medium">{formatDateLabel(eventData.event.end_date)}</span> 結束，目前為唯讀模式，無法修改可用時間。
+        </div>
+      )}
+
       <section className="grid gap-4 xl:grid-cols-[1fr_300px]">
         <div className="glass-panel overflow-hidden">
           {/* Controls */}
-          <div className="border-b border-brand-200 px-4 py-3 sm:px-6">
-            <div className="flex flex-col gap-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  className="rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700 transition hover:bg-brand-100 active:scale-95"
-                  type="button"
-                  onClick={handleSelectAll}
-                >
-                  {dates.flatMap((d) => eventHours.map((h) => buildSlotKey(d, h))).every((s) => selectedSlots.has(s))
-                    ? "清除全選"
-                    : "全選所有時段"}
-                </button>
+          {!isExpired && (
+            <div className="border-b border-brand-200 px-4 py-3 sm:px-6">
+              <div className="flex flex-col gap-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    className="rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700 transition hover:bg-brand-100 active:scale-95"
+                    type="button"
+                    onClick={handleSelectAll}
+                  >
+                    {dates.flatMap((d) => eventHours.map((h) => buildSlotKey(d, h))).every((s) => selectedSlots.has(s))
+                      ? "清除全選"
+                      : "全選所有時段"}
+                  </button>
+                </div>
+                <p className="text-xs text-brand-300">點擊日期標題可全選當天</p>
               </div>
-              <p className="text-xs text-brand-300">點擊日期標題可全選當天</p>
             </div>
-          </div>
+          )}
 
           {/* Availability grid */}
           <div className="grid-scroll-area">
@@ -462,13 +475,15 @@ export default function EventPage() {
                     className="sticky top-0 z-20 flex flex-col items-center gap-1 border-b border-brand-200 bg-brand-50/95 px-1 py-2 text-center backdrop-blur"
                   >
                     <span className="text-xs font-medium text-brand-700">{formatDateLabel(date)}</span>
-                    <button
-                      className="rounded-full border border-brand-200 bg-white px-2 py-0.5 text-[10px] font-medium text-brand-400 transition hover:bg-brand-100 active:scale-95"
-                      type="button"
-                      onClick={() => handleSelectAllDay(date)}
-                    >
-                      {allSelected ? "Clear" : "All"}
-                    </button>
+                    {!isExpired && (
+                      <button
+                        className="rounded-full border border-brand-200 bg-white px-2 py-0.5 text-[10px] font-medium text-brand-400 transition hover:bg-brand-100 active:scale-95"
+                        type="button"
+                        onClick={() => handleSelectAllDay(date)}
+                      >
+                        {allSelected ? "Clear" : "All"}
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -495,10 +510,10 @@ export default function EventPage() {
                       key={slot}
                       className={`m-0.5 flex flex-col items-center justify-center rounded-xl border text-center transition sm:m-1 sm:rounded-2xl ${getCellClasses(isSelected)}`}
                       style={{ minHeight: "60px" }}
-                      onPointerDown={(e) => { e.preventDefault(); startDrag(slot); }}
-                      onPointerEnter={() => extendDrag(slot)}
-                      onPointerUp={() => finishDrag()}
-                      onPointerCancel={() => cancelDrag()}
+                      onPointerDown={isExpired ? undefined : (e) => { e.preventDefault(); startDrag(slot); }}
+                      onPointerEnter={isExpired ? undefined : () => extendDrag(slot)}
+                      onPointerUp={isExpired ? undefined : () => finishDrag()}
+                      onPointerCancel={isExpired ? undefined : () => cancelDrag()}
                       title={users.length ? `Available: ${users.join(", ")}` : "No one yet"}
                       type="button"
                     >
@@ -591,9 +606,15 @@ export default function EventPage() {
           <section className="glass-panel p-5">
             <h2 className="text-lg font-semibold text-brand-700">Status</h2>
             <div className="mt-4 space-y-3 text-sm text-brand-500">
-              <p>Saving as <span className="font-medium text-brand-700">{userName}</span></p>
-              <p>{isSaving ? "Saving changes..." : "Changes save automatically after dragging."}</p>
-              {saveError ? <p className="text-rose-600">{saveError}</p> : null}
+              {isExpired ? (
+                <p className="text-brand-600">此活動已結束，資料為唯讀模式。</p>
+              ) : (
+                <>
+                  <p>Saving as <span className="font-medium text-brand-700">{userName}</span></p>
+                  <p>{isSaving ? "Saving changes..." : "Changes save automatically after dragging."}</p>
+                  {saveError ? <p className="text-rose-600">{saveError}</p> : null}
+                </>
+              )}
             </div>
           </section>
         </aside>
