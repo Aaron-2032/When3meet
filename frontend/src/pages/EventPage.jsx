@@ -69,7 +69,7 @@ export default function EventPage() {
   const [copied, setCopied] = useState(false);
   const [isBestOpen, setIsBestOpen] = useState(true);
 
-  const dragRef = useRef({ active: false, mode: "add", visited: new Set() });
+  const dragRef = useRef({ active: false, mode: "add", visited: new Set(), startSlot: null, initialSlots: new Set() });
   const dragMoved = useRef(false);
   const selectedSlotsRef = useRef(new Set());
   const isSavingRef = useRef(false);
@@ -123,7 +123,11 @@ export default function EventPage() {
 
   useEffect(() => {
     window.addEventListener("pointerup", finishDrag);
-    return () => window.removeEventListener("pointerup", finishDrag);
+    window.addEventListener("pointercancel", cancelDrag);
+    return () => {
+      window.removeEventListener("pointerup", finishDrag);
+      window.removeEventListener("pointercancel", cancelDrag);
+    };
   }, []);
 
   const dates = useMemo(() => {
@@ -175,36 +179,64 @@ export default function EventPage() {
   function startDrag(slot) {
     if (!userName) { setIsNameDialogOpen(true); return; }
     const mode = selectedSlotsRef.current.has(slot) ? "remove" : "add";
-    dragRef.current = { active: true, mode, visited: new Set() };
+    dragRef.current = {
+      active: true,
+      mode,
+      visited: new Set(),
+      startSlot: slot,
+      initialSlots: new Set(selectedSlotsRef.current),
+    };
     dragMoved.current = false;
     isDraggingRef.current = true;
     document.body.style.userSelect = "none";
-    updateSlot(slot, mode);
+    // Don't toggle yet — wait for tap (pointerup on same cell) or drag (entering another cell)
   }
 
   function extendDrag(slot) {
     if (!dragRef.current.active) return;
-    dragMoved.current = true;
+    if (slot === dragRef.current.startSlot) return;
+    if (!dragMoved.current) {
+      // First cell entered after start — commit start cell and mark as drag
+      dragMoved.current = true;
+      updateSlot(dragRef.current.startSlot, dragRef.current.mode);
+    }
     updateSlot(slot, dragRef.current.mode);
   }
 
   function finishDrag() {
     if (!dragRef.current.active) return;
     dragRef.current.active = false;
+    isDraggingRef.current = false;
+    document.body.style.userSelect = "";
+
+    const { startSlot, mode } = dragRef.current;
+    dragRef.current.visited = new Set();
+
+    if (!dragMoved.current && startSlot) {
+      // Pure tap — apply toggle only to the tapped cell
+      const next = new Set(selectedSlotsRef.current);
+      if (mode === "add") next.add(startSlot);
+      else next.delete(startSlot);
+      selectedSlotsRef.current = next;
+      setSelectedSlots(next);
+      persistSelection(next);
+    } else if (dragMoved.current) {
+      persistSelection(selectedSlotsRef.current);
+    }
+  }
+
+  function cancelDrag() {
+    if (!dragRef.current.active) return;
+    if (dragMoved.current) {
+      // Revert any cells toggled during the cancelled drag
+      const initial = new Set(dragRef.current.initialSlots);
+      selectedSlotsRef.current = initial;
+      setSelectedSlots(initial);
+    }
+    dragRef.current.active = false;
     dragRef.current.visited = new Set();
     isDraggingRef.current = false;
     document.body.style.userSelect = "";
-    persistSelection(selectedSlotsRef.current);
-  }
-
-  function handleTapToggle(slot) {
-    if (dragMoved.current) return;
-    if (!userName) { setIsNameDialogOpen(true); return; }
-    const next = new Set(selectedSlotsRef.current);
-    if (next.has(slot)) next.delete(slot); else next.add(slot);
-    selectedSlotsRef.current = next;
-    setSelectedSlots(next);
-    persistSelection(next);
   }
 
   function handleNameSubmit(event) {
@@ -415,7 +447,7 @@ export default function EventPage() {
                       onPointerDown={(e) => { e.preventDefault(); startDrag(slot); }}
                       onPointerEnter={() => extendDrag(slot)}
                       onPointerUp={() => finishDrag()}
-                      onClick={() => handleTapToggle(slot)}
+                      onPointerCancel={() => cancelDrag()}
                       title={users.length ? `Available: ${users.join(", ")}` : "No one yet"}
                       type="button"
                     >
