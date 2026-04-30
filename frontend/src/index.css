@@ -1,29 +1,30 @@
 @import "tailwindcss";
 
 @theme {
-  --shadow-glow: 0 20px 60px rgba(76, 110, 245, 0.18);
+  --shadow-glow: 0 4px 32px rgba(40, 75, 99, 0.10);
 
-  --color-brand-50:  #f3f3ff;
-  --color-brand-100: #e9ebff;
-  --color-brand-300: #c2c6fb;
-  --color-brand-400: #9ea4f9;
-  --color-brand-500: #6d76f7;
-  --color-brand-600: #5d63ec;
-  --color-brand-700: #4e52d3;
-  --color-brand-900: #1a1d6e;
+  --color-brand-50:  #f4f9e9;
+  --color-brand-100: #eef0eb;
+  --color-brand-200: #d0d5cc;
+  --color-brand-300: #b4b8ab;
+  --color-brand-400: #8ea2a6;
+  --color-brand-500: #6b8c90;
+  --color-brand-600: #4a717d;
+  --color-brand-700: #284b63;
+  --color-brand-900: #1a2f3d;
 }
 
 @layer base {
   * {
-    @apply border-slate-200/10;
+    @apply border-brand-200/60;
   }
 
   html {
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   body {
-    @apply m-0 min-h-screen bg-slate-950 font-sans text-slate-100 antialiased;
+    @apply m-0 min-h-screen bg-brand-50 font-sans text-brand-700 antialiased;
   }
 
   #root {
@@ -33,22 +34,21 @@
 
 @layer components {
   .glass-panel {
-    @apply rounded-3xl border border-white/10 bg-white/10 shadow-glow backdrop-blur-xl;
+    @apply rounded-3xl border border-brand-200 bg-white shadow-glow;
   }
 
   .form-input {
-    @apply w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-slate-100 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/40;
+    @apply w-full rounded-2xl border border-brand-200 bg-white px-4 py-3 text-brand-700 outline-none placeholder:text-brand-300 transition focus:border-brand-700 focus:ring-2 focus:ring-brand-700/20;
   }
 
   .primary-button {
-    @apply inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-brand-500 to-fuchsia-500 px-5 py-3 font-semibold text-white shadow-lg shadow-brand-900/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex items-center justify-center rounded-2xl bg-brand-700 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-brand-900 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .secondary-button {
-    @apply inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-4 py-2 font-medium text-slate-100 transition hover:bg-white/10;
+    @apply inline-flex items-center justify-center rounded-2xl border border-brand-200 bg-brand-50 px-4 py-2 font-medium text-brand-700 transition hover:bg-brand-100 active:scale-[0.98];
   }
 
-  /* Grid scroll container — bigger scrollbar on small / touch screens */
   .grid-scroll-area {
     @apply overflow-auto;
   }
@@ -57,11 +57,11 @@
     height: 4px;
   }
   .grid-scroll-area::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(40, 75, 99, 0.06);
     border-radius: 9999px;
   }
   .grid-scroll-area::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.18);
+    background: rgba(40, 75, 99, 0.18);
     border-radius: 9999px;
   }
 
@@ -71,10 +71,10 @@
       height: 8px;
     }
     .grid-scroll-area::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.35);
+      background: rgba(40, 75, 99, 0.28);
     }
     .grid-scroll-area::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.08);
+      background: rgba(40, 75, 99, 0.06);
     }
   }
 }

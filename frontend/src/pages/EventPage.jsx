@@ -31,9 +31,9 @@ function copyToClipboard(text) {
 
 function getCellClasses(isSelected) {
   if (isSelected) {
-    return "border-brand-300 bg-gradient-to-br from-brand-400 to-fuchsia-500 text-white shadow-md shadow-brand-900/40";
+    return "border-brand-600 bg-gradient-to-br from-brand-700 to-brand-500 text-white shadow-sm shadow-brand-700/20";
   }
-  return "border-white/10 bg-slate-900/60 text-slate-400 hover:bg-slate-800/80";
+  return "border-brand-200 bg-brand-50 text-brand-400 hover:bg-brand-100";
 }
 
 function hoursToRanges(hours) {
@@ -220,14 +220,12 @@ export default function EventPage() {
     dragMoved.current = false;
     isDraggingRef.current = true;
     document.body.style.userSelect = "none";
-    // Don't toggle yet — wait for tap (pointerup on same cell) or drag (entering another cell)
   }
 
   function extendDrag(slot) {
     if (!dragRef.current.active) return;
     if (slot === dragRef.current.startSlot) return;
     if (!dragMoved.current) {
-      // First cell entered after start — commit start cell and mark as drag
       dragMoved.current = true;
       updateSlot(dragRef.current.startSlot, dragRef.current.mode);
     }
@@ -244,7 +242,6 @@ export default function EventPage() {
     dragRef.current.visited = new Set();
 
     if (!dragMoved.current && startSlot) {
-      // Pure tap — apply toggle only to the tapped cell
       const next = new Set(selectedSlotsRef.current);
       if (mode === "add") next.add(startSlot);
       else next.delete(startSlot);
@@ -259,7 +256,6 @@ export default function EventPage() {
   function cancelDrag() {
     if (!dragRef.current.active) return;
     if (dragMoved.current) {
-      // Revert any cells toggled during the cancelled drag
       const initial = new Set(dragRef.current.initialSlots);
       selectedSlotsRef.current = initial;
       setSelectedSlots(initial);
@@ -311,7 +307,7 @@ export default function EventPage() {
   if (loading) {
     return (
       <main className="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 py-10">
-        <div className="glass-panel px-6 py-5 text-slate-200">Loading event...</div>
+        <div className="glass-panel px-6 py-5 text-brand-600">Loading event...</div>
       </main>
     );
   }
@@ -320,8 +316,8 @@ export default function EventPage() {
     return (
       <main className="mx-auto flex min-h-screen max-w-4xl items-center px-4 py-10">
         <div className="glass-panel w-full space-y-4 p-8">
-          <p className="text-lg font-semibold text-white">Unable to load this event</p>
-          <p className="text-sm text-slate-300">{error}</p>
+          <p className="text-lg font-semibold text-brand-700">Unable to load this event</p>
+          <p className="text-sm text-brand-500">{error}</p>
           <Link className="secondary-button" to="/">Create a new event</Link>
         </div>
       </main>
@@ -336,22 +332,22 @@ export default function EventPage() {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col items-center justify-center gap-6 px-4 py-12">
         <div className="glass-panel w-full space-y-1 p-6 text-center">
-          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+          <p className="text-xs font-semibold uppercase tracking-widest text-brand-400">
             You&rsquo;re invited
           </p>
-          <h1 className="mt-2 text-3xl font-bold text-white">{eventData.event.name}</h1>
-          <p className="text-sm text-slate-400">
+          <h1 className="mt-2 text-3xl font-bold text-brand-700">{eventData.event.name}</h1>
+          <p className="text-sm text-brand-400">
             {formatDateLabel(eventData.event.start_date)} &rarr;{" "}
             {formatDateLabel(eventData.event.end_date)}
           </p>
           {participantNames.length > 0 && (
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               {participantNames.map((name) => (
-                <span key={name} className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300">
+                <span key={name} className="rounded-full bg-brand-100 px-3 py-1 text-xs text-brand-600">
                   {name} ✓
                 </span>
               ))}
-              <span className="rounded-full bg-slate-800/50 px-3 py-1 text-xs text-slate-500">
+              <span className="rounded-full bg-brand-50 px-3 py-1 text-xs text-brand-400">
                 {participantNames.length} responded
               </span>
             </div>
@@ -359,8 +355,8 @@ export default function EventPage() {
         </div>
 
         <div className="glass-panel w-full p-6">
-          <h2 className="mb-1 text-lg font-semibold text-white">Enter your name to join</h2>
-          <p className="mb-5 text-sm text-slate-400">
+          <h2 className="mb-1 text-lg font-semibold text-brand-700">Enter your name to join</h2>
+          <p className="mb-5 text-sm text-brand-400">
             You&rsquo;ll be able to mark your availability on the next screen.
           </p>
           <form className="space-y-4" onSubmit={handleNameSubmit}>
@@ -382,7 +378,7 @@ export default function EventPage() {
           {copied ? "✓ Link copied!" : "📋 Copy invite link"}
         </button>
 
-        <Link className="text-xs text-slate-600 hover:text-slate-400" to="/">
+        <Link className="text-xs text-brand-300 hover:text-brand-500 transition" to="/">
           Create your own event
         </Link>
       </main>
@@ -394,9 +390,9 @@ export default function EventPage() {
       {/* Header */}
       <section className="glass-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="space-y-1">
-          <div className="text-xs text-brand-100 sm:text-sm">Shared availability board</div>
-          <h1 className="text-xl font-semibold text-white sm:text-3xl">{eventData.event.name}</h1>
-          <p className="text-xs text-slate-300 sm:text-sm">
+          <div className="text-xs text-brand-400 sm:text-sm">Shared availability board</div>
+          <h1 className="text-xl font-semibold text-brand-700 sm:text-3xl">{eventData.event.name}</h1>
+          <p className="text-xs text-brand-500 sm:text-sm">
             {formatDateLabel(eventData.event.start_date)} to{" "}
             {formatDateLabel(eventData.event.end_date)}
           </p>
@@ -415,17 +411,17 @@ export default function EventPage() {
       <section className="grid gap-4 xl:grid-cols-[1fr_300px]">
         <div className="glass-panel overflow-hidden">
           {/* Controls */}
-          <div className="border-b border-white/10 px-4 py-3 sm:px-6">
+          <div className="border-b border-brand-200 px-4 py-3 sm:px-6">
             <div className="flex flex-col gap-1.5">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-brand-500/20 bg-brand-500/10 px-3 py-1 text-xs text-brand-100">
+                <span className="rounded-full border border-brand-700/20 bg-brand-700/10 px-3 py-1 text-xs text-brand-700">
                   已選時段
                 </span>
-                <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-200">
+                <span className="rounded-full border border-brand-400/30 bg-brand-400/10 px-3 py-1 text-xs text-brand-600">
                   最佳時段
                 </span>
                 <button
-                  className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-bold text-slate-100 transition hover:bg-white/15 active:scale-95"
+                  className="rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700 transition hover:bg-brand-100 active:scale-95"
                   type="button"
                   onClick={handleSelectAll}
                 >
@@ -434,7 +430,7 @@ export default function EventPage() {
                     : "全選"}
                 </button>
               </div>
-              <p className="text-xs text-slate-500">點擊日期標題可全選當天</p>
+              <p className="text-xs text-brand-300">點擊日期標題可全選當天</p>
             </div>
           </div>
 
@@ -447,7 +443,7 @@ export default function EventPage() {
                 minWidth: `${68 + dates.length * 88}px`,
               }}
             >
-              <div className="sticky left-0 top-0 z-30 border-b border-r border-white/10 bg-slate-950/95 px-2 py-3 text-[10px] uppercase tracking-widest text-slate-400 backdrop-blur">
+              <div className="sticky left-0 top-0 z-30 border-b border-r border-brand-200 bg-brand-50/95 px-2 py-3 text-[10px] uppercase tracking-widest text-brand-300 backdrop-blur">
                 Time
               </div>
 
@@ -457,11 +453,11 @@ export default function EventPage() {
                 return (
                   <div
                     key={date}
-                    className="sticky top-0 z-20 flex flex-col items-center gap-1 border-b border-white/10 bg-slate-950/95 px-1 py-2 text-center backdrop-blur"
+                    className="sticky top-0 z-20 flex flex-col items-center gap-1 border-b border-brand-200 bg-brand-50/95 px-1 py-2 text-center backdrop-blur"
                   >
-                    <span className="text-xs font-medium text-slate-100">{formatDateLabel(date)}</span>
+                    <span className="text-xs font-medium text-brand-700">{formatDateLabel(date)}</span>
                     <button
-                      className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium text-slate-400 transition hover:bg-white/15 active:scale-95"
+                      className="rounded-full border border-brand-200 bg-white px-2 py-0.5 text-[10px] font-medium text-brand-400 transition hover:bg-brand-100 active:scale-95"
                       type="button"
                       onClick={() => handleSelectAllDay(date)}
                     >
@@ -475,7 +471,7 @@ export default function EventPage() {
                 const row = [
                   <div
                     key={`hour-${hour}`}
-                    className="sticky left-0 z-10 flex items-center border-r border-white/10 bg-slate-950/95 px-2 text-xs font-medium text-slate-200 backdrop-blur"
+                    className="sticky left-0 z-10 flex items-center border-r border-brand-200 bg-brand-50/95 px-2 text-xs font-medium text-brand-500 backdrop-blur"
                     style={{ minHeight: "60px" }}
                   >
                     <HourLabel hour={hour} />
@@ -520,20 +516,20 @@ export default function EventPage() {
         <aside className="space-y-4">
           <section className="glass-panel overflow-hidden">
             <button
-              className="flex w-full items-center justify-between p-5 text-left transition hover:bg-white/5"
+              className="flex w-full items-center justify-between p-5 text-left transition hover:bg-brand-50"
               type="button"
               onClick={() => setIsBestOpen((prev) => !prev)}
             >
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold text-white">Best time slots</h2>
+                <h2 className="text-lg font-semibold text-brand-700">Best time slots</h2>
                 {maxCount > 0 && (
-                  <span className="rounded-full bg-emerald-400/20 px-2 py-0.5 text-xs font-medium text-emerald-300">
+                  <span className="rounded-full bg-brand-400/20 px-2 py-0.5 text-xs font-medium text-brand-600">
                     {bestSlots.size}
                   </span>
                 )}
               </div>
               <svg
-                className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isBestOpen ? "rotate-180" : ""}`}
+                className={`h-4 w-4 text-brand-400 transition-transform duration-200 ${isBestOpen ? "rotate-180" : ""}`}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -544,19 +540,19 @@ export default function EventPage() {
               <div className="space-y-3 px-5 pb-5">
                 {maxCount > 0 ? (
                   <>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-brand-400">
                       最多 {maxCount} 人同時有空，共 {bestSlots.size} 個時段
                     </p>
                     {bestByDate.slice(0, 6).map(({ date, hours, users }) => (
-                      <div key={date} className="rounded-2xl border border-emerald-300/20 bg-emerald-400/5 p-3">
-                        <p className="mb-2 text-xs font-semibold text-emerald-300">
+                      <div key={date} className="rounded-2xl border border-brand-300/40 bg-brand-50 p-3">
+                        <p className="mb-2 text-xs font-semibold text-brand-700">
                           {formatDateLabel(date)}
                         </p>
                         <div className="mb-2 flex flex-wrap gap-1">
                           {hoursToRanges(hours).map(({ start, end }) => (
                             <span
                               key={start}
-                              className="rounded-lg bg-emerald-400/20 px-2 py-0.5 text-xs font-medium text-emerald-100"
+                              className="rounded-lg bg-brand-400/15 px-2 py-0.5 text-xs font-medium text-brand-700"
                             >
                               {start === end
                                 ? <HourLabel hour={start} />
@@ -569,7 +565,7 @@ export default function EventPage() {
                             {users.map((name) => (
                               <span
                                 key={name}
-                                className="rounded-full bg-slate-700/60 px-2 py-0.5 text-[10px] text-slate-300"
+                                className="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] text-brand-500"
                               >
                                 ✓ {name}
                               </span>
@@ -580,18 +576,18 @@ export default function EventPage() {
                     ))}
                   </>
                 ) : (
-                  <p className="text-sm text-slate-300">尚無人填寫可用時段。</p>
+                  <p className="text-sm text-brand-400">尚無人填寫可用時段。</p>
                 )}
               </div>
             )}
           </section>
 
           <section className="glass-panel p-5">
-            <h2 className="text-lg font-semibold text-white">Status</h2>
-            <div className="mt-4 space-y-3 text-sm text-slate-300">
-              <p>Saving as <span className="font-medium text-white">{userName}</span></p>
+            <h2 className="text-lg font-semibold text-brand-700">Status</h2>
+            <div className="mt-4 space-y-3 text-sm text-brand-500">
+              <p>Saving as <span className="font-medium text-brand-700">{userName}</span></p>
               <p>{isSaving ? "Saving changes..." : "Changes save automatically after dragging."}</p>
-              {saveError ? <p className="text-rose-200">{saveError}</p> : null}
+              {saveError ? <p className="text-rose-600">{saveError}</p> : null}
             </div>
           </section>
         </aside>
@@ -599,10 +595,10 @@ export default function EventPage() {
 
       {/* Name dialog */}
       {isNameDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 px-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-700/20 px-4 backdrop-blur-sm">
           <form className="glass-panel w-full max-w-md p-6" onSubmit={handleNameSubmit}>
-            <h2 className="text-xl font-semibold text-white">Enter your name</h2>
-            <p className="mt-1 text-sm text-slate-300">
+            <h2 className="text-xl font-semibold text-brand-700">Enter your name</h2>
+            <p className="mt-1 text-sm text-brand-500">
               Your availability is saved under this name for this event.
             </p>
             <div className="mt-5 space-y-4">
