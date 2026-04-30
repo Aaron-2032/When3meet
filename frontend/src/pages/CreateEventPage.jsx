@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { createEvent } from "../api";
-import { toDateInputValue } from "../utils/date";
+import { HOURS, formatHourLabel, toDateInputValue } from "../utils/date";
 
 export default function CreateEventPage() {
   const navigate = useNavigate();
@@ -21,6 +21,8 @@ export default function CreateEventPage() {
     name: "",
     startDate: defaults.startDate,
     endDate: defaults.endDate,
+    startHour: 9,
+    endHour: 22,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -118,6 +120,43 @@ export default function CreateEventPage() {
                   }
                   required
                 />
+              </label>
+            </div>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-200">Start time</span>
+                <select
+                  className="form-input cursor-pointer"
+                  value={form.startHour}
+                  onChange={(event) => {
+                    const newHour = Number(event.target.value);
+                    setForm((current) => ({
+                      ...current,
+                      startHour: newHour,
+                      endHour: current.endHour <= newHour ? newHour + 1 : current.endHour,
+                    }));
+                  }}
+                >
+                  {HOURS.filter((h) => h < 23).map((h) => (
+                    <option key={h} value={h}>{formatHourLabel(h)}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-200">End time</span>
+                <select
+                  className="form-input cursor-pointer"
+                  value={form.endHour}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, endHour: Number(event.target.value) }))
+                  }
+                >
+                  {HOURS.filter((h) => h > form.startHour).map((h) => (
+                    <option key={h} value={h}>{formatHourLabel(h)}</option>
+                  ))}
+                </select>
               </label>
             </div>
 

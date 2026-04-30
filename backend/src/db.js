@@ -23,6 +23,8 @@ export async function getDb() {
           name TEXT NOT NULL,
           start_date TEXT NOT NULL,
           end_date TEXT NOT NULL,
+          start_hour INTEGER NOT NULL DEFAULT 0,
+          end_hour INTEGER NOT NULL DEFAULT 23,
           created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
 

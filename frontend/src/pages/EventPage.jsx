@@ -49,6 +49,19 @@ function hoursToRanges(hours) {
   return ranges;
 }
 
+function HourLabel({ hour }) {
+  const label = formatHourLabel(hour);
+  const match = label.match(/^(\d+)(AM|PM)$/);
+  if (!match) return <span>{label}</span>;
+  const [, num, period] = match;
+  return (
+    <span className="inline-flex items-baseline gap-px">
+      <span style={{ fontSize: "1.15em" }}>{num}</span>
+      <span style={{ fontSize: "0.7em" }}>{period}</span>
+    </span>
+  );
+}
+
 export default function EventPage() {
   const { id } = useParams();
   const [eventData, setEventData] = useState(null);
@@ -127,6 +140,13 @@ export default function EventPage() {
   const dates = useMemo(() => {
     if (!eventData?.event) return [];
     return getDatesInRange(eventData.event.start_date, eventData.event.end_date);
+  }, [eventData]);
+
+  const eventHours = useMemo(() => {
+    if (!eventData?.event) return HOURS;
+    const startH = eventData.event.start_hour ?? 0;
+    const endH = eventData.event.end_hour ?? 23;
+    return HOURS.filter((h) => h >= startH && h <= endH);
   }, [eventData]);
 
   const counts = eventData?.availability?.counts || {};
@@ -269,7 +289,7 @@ export default function EventPage() {
 
   function handleSelectAllDay(date) {
     if (!userName) { setIsNameDialogOpen(true); return; }
-    const daySlots = HOURS.map((h) => buildSlotKey(date, h));
+    const daySlots = eventHours.map((h) => buildSlotKey(date, h));
     const allSelected = daySlots.every((s) => selectedSlotsRef.current.has(s));
     const next = new Set(selectedSlotsRef.current);
     daySlots.forEach((s) => (allSelected ? next.delete(s) : next.add(s)));
@@ -280,7 +300,7 @@ export default function EventPage() {
 
   function handleSelectAll() {
     if (!userName) { setIsNameDialogOpen(true); return; }
-    const allSlots = dates.flatMap((date) => HOURS.map((h) => buildSlotKey(date, h)));
+    const allSlots = dates.flatMap((date) => eventHours.map((h) => buildSlotKey(date, h)));
     const allSelected = allSlots.every((s) => selectedSlotsRef.current.has(s));
     const next = new Set(allSelected ? [] : allSlots);
     selectedSlotsRef.current = next;
@@ -396,23 +416,25 @@ export default function EventPage() {
         <div className="glass-panel overflow-hidden">
           {/* Controls */}
           <div className="border-b border-white/10 px-4 py-3 sm:px-6">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-brand-500/20 bg-brand-500/10 px-3 py-1 text-xs text-brand-100">
-                已選時段
-              </span>
-              <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-200">
-                最佳時段
-              </span>
-              <span className="text-xs text-slate-500">點擊日期標題可全選當天</span>
-              <button
-                className="ml-auto rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-300 transition hover:bg-white/15 active:scale-95"
-                type="button"
-                onClick={handleSelectAll}
-              >
-                {dates.flatMap((d) => HOURS.map((h) => buildSlotKey(d, h))).every((s) => selectedSlots.has(s))
-                  ? "清除全選"
-                  : "全選"}
-              </button>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-brand-500/20 bg-brand-500/10 px-3 py-1 text-xs text-brand-100">
+                  已選時段
+                </span>
+                <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-200">
+                  最佳時段
+                </span>
+                <button
+                  className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-bold text-slate-100 transition hover:bg-white/15 active:scale-95"
+                  type="button"
+                  onClick={handleSelectAll}
+                >
+                  {dates.flatMap((d) => eventHours.map((h) => buildSlotKey(d, h))).every((s) => selectedSlots.has(s))
+                    ? "清除全選"
+                    : "全選"}
+                </button>
+              </div>
+              <p className="text-xs text-slate-500">點擊日期標題可全選當天</p>
             </div>
           </div>
 
@@ -430,7 +452,7 @@ export default function EventPage() {
               </div>
 
               {dates.map((date) => {
-                const daySlots = HOURS.map((h) => buildSlotKey(date, h));
+                const daySlots = eventHours.map((h) => buildSlotKey(date, h));
                 const allSelected = daySlots.every((s) => selectedSlots.has(s));
                 return (
                   <div
@@ -449,14 +471,14 @@ export default function EventPage() {
                 );
               })}
 
-              {HOURS.flatMap((hour) => {
+              {eventHours.flatMap((hour) => {
                 const row = [
                   <div
                     key={`hour-${hour}`}
                     className="sticky left-0 z-10 flex items-center border-r border-white/10 bg-slate-950/95 px-2 text-xs font-medium text-slate-200 backdrop-blur"
                     style={{ minHeight: "60px" }}
                   >
-                    {formatHourLabel(hour)}
+                    <HourLabel hour={hour} />
                   </div>,
                 ];
 
@@ -496,15 +518,6 @@ export default function EventPage() {
 
         {/* Sidebar */}
         <aside className="space-y-4">
-          <section className="glass-panel p-5">
-            <h2 className="text-lg font-semibold text-white">Status</h2>
-            <div className="mt-4 space-y-3 text-sm text-slate-300">
-              <p>Saving as <span className="font-medium text-white">{userName}</span></p>
-              <p>{isSaving ? "Saving changes..." : "Changes save automatically after dragging."}</p>
-              {saveError ? <p className="text-rose-200">{saveError}</p> : null}
-            </div>
-          </section>
-
           <section className="glass-panel overflow-hidden">
             <button
               className="flex w-full items-center justify-between p-5 text-left transition hover:bg-white/5"
@@ -546,8 +559,8 @@ export default function EventPage() {
                               className="rounded-lg bg-emerald-400/20 px-2 py-0.5 text-xs font-medium text-emerald-100"
                             >
                               {start === end
-                                ? formatHourLabel(start)
-                                : `${formatHourLabel(start)}–${formatHourLabel(end + 1)}`}
+                                ? <HourLabel hour={start} />
+                                : <><HourLabel hour={start} />–<HourLabel hour={end + 1} /></>}
                             </span>
                           ))}
                         </div>
@@ -571,6 +584,15 @@ export default function EventPage() {
                 )}
               </div>
             )}
+          </section>
+
+          <section className="glass-panel p-5">
+            <h2 className="text-lg font-semibold text-white">Status</h2>
+            <div className="mt-4 space-y-3 text-sm text-slate-300">
+              <p>Saving as <span className="font-medium text-white">{userName}</span></p>
+              <p>{isSaving ? "Saving changes..." : "Changes save automatically after dragging."}</p>
+              {saveError ? <p className="text-rose-200">{saveError}</p> : null}
+            </div>
           </section>
         </aside>
       </section>
