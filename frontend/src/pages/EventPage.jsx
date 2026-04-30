@@ -278,6 +278,16 @@ export default function EventPage() {
     persistSelection(next);
   }
 
+  function handleSelectAll() {
+    if (!userName) { setIsNameDialogOpen(true); return; }
+    const allSlots = dates.flatMap((date) => HOURS.map((h) => buildSlotKey(date, h)));
+    const allSelected = allSlots.every((s) => selectedSlotsRef.current.has(s));
+    const next = new Set(allSelected ? [] : allSlots);
+    selectedSlotsRef.current = next;
+    setSelectedSlots(next);
+    persistSelection(next);
+  }
+
   if (loading) {
     return (
       <main className="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 py-10">
@@ -388,14 +398,21 @@ export default function EventPage() {
           <div className="border-b border-white/10 px-4 py-3 sm:px-6">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full border border-brand-500/20 bg-brand-500/10 px-3 py-1 text-xs text-brand-100">
-                Your selection
+                已選時段
               </span>
               <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-200">
-                Best slots
+                最佳時段
               </span>
-              <span className="ml-auto text-xs text-slate-500">
-                Tap to toggle · Drag to fill
-              </span>
+              <span className="text-xs text-slate-500">點擊日期標題可全選當天</span>
+              <button
+                className="ml-auto rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-300 transition hover:bg-white/15 active:scale-95"
+                type="button"
+                onClick={handleSelectAll}
+              >
+                {dates.flatMap((d) => HOURS.map((h) => buildSlotKey(d, h))).every((s) => selectedSlots.has(s))
+                  ? "清除全選"
+                  : "全選"}
+              </button>
             </div>
           </div>
 
