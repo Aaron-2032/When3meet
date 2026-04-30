@@ -3,10 +3,10 @@
 @theme {
   --shadow-glow: 0 4px 32px rgba(40, 75, 99, 0.10);
 
-  --color-brand-50:  #f4f9e9;
-  --color-brand-100: #eef0eb;
-  --color-brand-200: #d0d5cc;
-  --color-brand-300: #b4b8ab;
+  --color-brand-50:  #f9f6f0;
+  --color-brand-100: #f0ece5;
+  --color-brand-200: #d9d3cb;
+  --color-brand-300: #b8b2aa;
   --color-brand-400: #8ea2a6;
   --color-brand-500: #6b8c90;
   --color-brand-600: #4a717d;
