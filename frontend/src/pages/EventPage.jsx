@@ -86,11 +86,11 @@ export default function EventPage() {
 
   useEffect(() => {
     let mounted = true;
+    setLoading(true);
 
     async function loadEvent() {
       try {
         if (!mounted) return;
-        if (!eventData) setLoading(true);
 
         const nextEvent = await fetchEvent(id, userName);
         if (!mounted) return;
