@@ -25,6 +25,7 @@ export async function getDb() {
           end_date TEXT NOT NULL,
           start_hour INTEGER NOT NULL DEFAULT 0,
           end_hour INTEGER NOT NULL DEFAULT 23,
+          slot_minutes INTEGER NOT NULL DEFAULT 60,
           created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -41,6 +42,8 @@ export async function getDb() {
         CREATE INDEX IF NOT EXISTS idx_availability_event_datetime
           ON availability (event_id, datetime);
       `);
+
+      await db.exec("ALTER TABLE events ADD COLUMN slot_minutes INTEGER NOT NULL DEFAULT 60").catch(() => {});
 
       return db;
     });

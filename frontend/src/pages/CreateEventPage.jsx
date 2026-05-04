@@ -19,6 +19,7 @@ export default function CreateEventPage() {
     endDate: defaults.endDate,
     startHour: 9,
     endHour: 22,
+    slotMinutes: 60,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -50,7 +51,7 @@ export default function CreateEventPage() {
           <div className="mb-6 space-y-1">
             <h1 className="text-2xl font-semibold text-brand-700">Create an event</h1>
             <p className="text-sm text-brand-400">
-              Pick a name and date range, then share the link with your group.
+              受夠難用的When2meet了嗎?
             </p>
           </div>
 
@@ -130,6 +131,32 @@ export default function CreateEventPage() {
                   ))}
                 </select>
               </label>
+            </div>
+
+            <div className="space-y-2">
+              <span className="text-sm font-medium text-brand-700">
+                時間間隔
+                <span className="ml-1.5 text-xs font-normal text-brand-400">(選填)</span>
+              </span>
+              <div className="flex gap-2">
+                {[
+                  { value: 60, label: "每 1 小時" },
+                  { value: 30, label: "每 30 分鐘" },
+                ].map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={`flex-1 rounded-xl border py-2 text-sm font-medium transition ${
+                      form.slotMinutes === value
+                        ? "border-brand-500 bg-brand-100 text-brand-700"
+                        : "border-brand-200 bg-white text-brand-400 hover:bg-brand-50"
+                    }`}
+                    onClick={() => setForm((c) => ({ ...c, slotMinutes: value }))}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {error ? (

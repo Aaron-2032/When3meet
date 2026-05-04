@@ -36,12 +36,15 @@ function getDatesInRange(startDate, endDate) {
   return dates;
 }
 
-function buildValidSlotSet(startDate, endDate, startHour = 0, endHour = 23) {
+function buildValidSlotSet(startDate, endDate, startHour = 0, endHour = 23, slotMinutes = 60) {
   const slots = new Set();
 
   for (const date of getDatesInRange(startDate, endDate)) {
     for (let hour = startHour; hour <= endHour; hour += 1) {
       slots.add(`${date}T${String(hour).padStart(2, "0")}:00`);
+      if (slotMinutes === 30) {
+        slots.add(`${date}T${String(hour).padStart(2, "0")}:30`);
+      }
     }
   }
 
@@ -59,7 +62,7 @@ function sanitizeName(value) {
 async function getEventOr404(eventId, res) {
   const db = await getDb();
   const event = await db.get(
-    "SELECT id, name, start_date, end_date, start_hour, end_hour, created_at FROM events WHERE id = ?",
+    "SELECT id, name, start_date, end_date, start_hour, end_hour, slot_minutes, created_at FROM events WHERE id = ?",
     eventId,
   );
 
@@ -85,6 +88,7 @@ app.post("/api/events", async (req, res) => {
     const endDate = String(req.body?.endDate || "");
     const startHour = Number(req.body?.startHour ?? 0);
     const endHour = Number(req.body?.endHour ?? 23);
+    const slotMinutes = Number(req.body?.slotMinutes ?? 60);
 
     if (!name) {
       return res.status(400).json({ error: "Event name is required." });
@@ -106,6 +110,10 @@ app.post("/api/events", async (req, res) => {
       return res.status(400).json({ error: "Invalid end hour." });
     }
 
+    if (slotMinutes !== 30 && slotMinutes !== 60) {
+      return res.status(400).json({ error: "slot_minutes must be 30 or 60." });
+    }
+
     let eventId = createEventId();
 
     while (await db.get("SELECT id FROM events WHERE id = ?", eventId)) {
@@ -113,13 +121,14 @@ app.post("/api/events", async (req, res) => {
     }
 
     await db.run(
-      "INSERT INTO events (id, name, start_date, end_date, start_hour, end_hour) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT INTO events (id, name, start_date, end_date, start_hour, end_hour, slot_minutes) VALUES (?, ?, ?, ?, ?, ?, ?)",
       eventId,
       name,
       startDate,
       endDate,
       startHour,
       endHour,
+      slotMinutes,
     );
 
     return res.status(201).json({
@@ -203,7 +212,7 @@ app.put("/api/events/:id/availability", async (req, res) => {
       return res.status(400).json({ error: "Your name is required." });
     }
 
-    const validSlots = buildValidSlotSet(event.start_date, event.end_date, event.start_hour ?? 0, event.end_hour ?? 23);
+    const validSlots = buildValidSlotSet(event.start_date, event.end_date, event.start_hour ?? 0, event.end_hour ?? 23, event.slot_minutes ?? 60);
     const normalizedSlots = [...new Set(slots.map((slot) => String(slot)))];
 
     if (normalizedSlots.some((slot) => !validSlots.has(slot))) {

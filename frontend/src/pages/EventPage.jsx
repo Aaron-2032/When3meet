@@ -3,11 +3,10 @@ import { Link, useParams } from "react-router-dom";
 
 import { fetchEvent, saveAvailability } from "../api";
 import {
-  HOURS,
   buildSlotKey,
+  buildSlotsForRange,
   formatDateLabel,
   formatHourLabel,
-  formatSlotLabel,
   getDatesInRange,
 } from "../utils/date";
 
@@ -36,20 +35,25 @@ function getCellClasses(isSelected) {
   return "border-brand-200 bg-brand-50 text-brand-400 hover:bg-brand-100";
 }
 
-function hoursToRanges(hours) {
+function slotsToRanges(slots, slotMinutes = 60) {
+  if (slots.length === 0) return [];
   const ranges = [];
-  let start = null;
-  let prev = null;
-  for (const h of hours) {
-    if (start === null) { start = h; prev = h; }
-    else if (h === prev + 1) { prev = h; }
-    else { ranges.push({ start, end: prev }); start = h; prev = h; }
+  let start = slots[0];
+  let prev = slots[0];
+  for (let i = 1; i < slots.length; i++) {
+    const curr = slots[i];
+    const isConsecutive = curr.hour * 60 + curr.minute === prev.hour * 60 + prev.minute + slotMinutes;
+    if (isConsecutive) { prev = curr; }
+    else { ranges.push({ start, end: prev }); start = curr; prev = curr; }
   }
-  if (start !== null) ranges.push({ start, end: prev });
+  ranges.push({ start, end: prev });
   return ranges;
 }
 
-function HourLabel({ hour }) {
+function SlotLabel({ hour, minute }) {
+  if (minute === 30) {
+    return <span className="text-[10px] text-brand-300">:30</span>;
+  }
   const label = formatHourLabel(hour);
   const match = label.match(/^(\d+)(AM|PM)$/);
   if (!match) return <span>{label}</span>;
@@ -144,12 +148,16 @@ export default function EventPage() {
     return getDatesInRange(eventData.event.start_date, eventData.event.end_date);
   }, [eventData]);
 
-  const eventHours = useMemo(() => {
-    if (!eventData?.event) return HOURS;
+  const eventSlots = useMemo(() => {
+    if (!eventData?.event) return buildSlotsForRange(0, 23, 60);
     const startH = eventData.event.start_hour ?? 0;
     const endH = eventData.event.end_hour ?? 23;
-    return HOURS.filter((h) => h >= startH && h <= endH);
+    const sm = eventData.event.slot_minutes ?? 60;
+    return buildSlotsForRange(startH, endH, sm);
   }, [eventData]);
+
+  const slotMinutes = eventData?.event?.slot_minutes ?? 60;
+  const cellHeight = slotMinutes === 30 ? 40 : 60;
 
   const counts = eventData?.availability?.counts || {};
   const usersBySlot = eventData?.availability?.usersBySlot || {};
@@ -164,16 +172,18 @@ export default function EventPage() {
     const map = {};
     for (const slot of bestSlots) {
       const [date, time] = slot.split("T");
-      const hour = Number(time.split(":")[0]);
+      const [hourStr, minuteStr] = time.split(":");
+      const hour = Number(hourStr);
+      const minute = Number(minuteStr);
       if (!map[date]) map[date] = [];
-      map[date].push({ hour, slot });
+      map[date].push({ hour, minute, slot });
     }
     return Object.entries(map)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, items]) => {
-        const sorted = [...items].sort((a, b) => a.hour - b.hour);
+        const sorted = [...items].sort((a, b) => a.hour - b.hour || a.minute - b.minute);
         const users = [...new Set(sorted.flatMap(({ slot }) => usersBySlot[slot] || []))];
-        return { date, hours: sorted.map((s) => s.hour), users };
+        return { date, slots: sorted, users };
       });
   })();
 
@@ -288,7 +298,7 @@ export default function EventPage() {
 
   function handleSelectAllDay(date) {
     if (isExpiredRef.current || !userName) { setIsNameDialogOpen(true); return; }
-    const daySlots = eventHours.map((h) => buildSlotKey(date, h));
+    const daySlots = eventSlots.map(({ hour, minute }) => buildSlotKey(date, hour, minute));
     const allSelected = daySlots.every((s) => selectedSlotsRef.current.has(s));
     const next = new Set(selectedSlotsRef.current);
     daySlots.forEach((s) => (allSelected ? next.delete(s) : next.add(s)));
@@ -299,7 +309,7 @@ export default function EventPage() {
 
   function handleSelectAll() {
     if (isExpiredRef.current || !userName) { setIsNameDialogOpen(true); return; }
-    const allSlots = dates.flatMap((date) => eventHours.map((h) => buildSlotKey(date, h)));
+    const allSlots = dates.flatMap((d) => eventSlots.map(({ hour, minute }) => buildSlotKey(d, hour, minute)));
     const allSelected = allSlots.every((s) => selectedSlotsRef.current.has(s));
     const next = new Set(allSelected ? [] : allSlots);
     selectedSlotsRef.current = next;
@@ -443,7 +453,7 @@ export default function EventPage() {
                     type="button"
                     onClick={handleSelectAll}
                   >
-                    {dates.flatMap((d) => eventHours.map((h) => buildSlotKey(d, h))).every((s) => selectedSlots.has(s))
+                    {dates.flatMap((d) => eventSlots.map(({ hour, minute }) => buildSlotKey(d, hour, minute))).every((s) => selectedSlots.has(s))
                       ? "清除全選"
                       : "全選所有時段"}
                   </button>
@@ -467,7 +477,7 @@ export default function EventPage() {
               </div>
 
               {dates.map((date) => {
-                const daySlots = eventHours.map((h) => buildSlotKey(date, h));
+                const daySlots = eventSlots.map(({ hour, minute }) => buildSlotKey(date, hour, minute));
                 const allSelected = daySlots.every((s) => selectedSlots.has(s));
                 return (
                   <div
@@ -488,19 +498,19 @@ export default function EventPage() {
                 );
               })}
 
-              {eventHours.flatMap((hour) => {
+              {eventSlots.flatMap(({ hour, minute }) => {
                 const row = [
                   <div
-                    key={`hour-${hour}`}
+                    key={`slot-${hour}-${minute}`}
                     className="sticky left-0 z-10 flex items-center border-r border-brand-200 bg-brand-50/95 px-2 text-xs font-medium text-brand-500 backdrop-blur"
-                    style={{ minHeight: "60px" }}
+                    style={{ minHeight: `${cellHeight}px` }}
                   >
-                    <HourLabel hour={hour} />
+                    <SlotLabel hour={hour} minute={minute} />
                   </div>,
                 ];
 
                 for (const date of dates) {
-                  const slot = buildSlotKey(date, hour);
+                  const slot = buildSlotKey(date, hour, minute);
                   const count = counts[slot] || 0;
                   const users = usersBySlot[slot] || [];
                   const isSelected = selectedSlots.has(slot);
@@ -509,7 +519,7 @@ export default function EventPage() {
                     <button
                       key={slot}
                       className={`m-0.5 flex flex-col items-center justify-center rounded-xl border text-center transition sm:m-1 sm:rounded-2xl ${getCellClasses(isSelected)}`}
-                      style={{ minHeight: "60px" }}
+                      style={{ minHeight: `${cellHeight}px` }}
                       onPointerDown={isExpired ? undefined : (e) => { e.preventDefault(); startDrag(slot); }}
                       onPointerEnter={isExpired ? undefined : () => extendDrag(slot)}
                       onPointerUp={isExpired ? undefined : () => finishDrag()}
@@ -518,7 +528,7 @@ export default function EventPage() {
                       type="button"
                     >
                       <span className="text-base font-semibold">{count}</span>
-                      {users.length > 0 && (
+                      {users.length > 0 && slotMinutes === 60 && (
                         <span className="hidden px-1 text-[10px] leading-tight opacity-80 sm:block">
                           {users.join(", ")}
                         </span>
@@ -564,22 +574,32 @@ export default function EventPage() {
                     <p className="text-xs text-brand-400">
                       最多 {maxCount} 人同時有空，共 {bestSlots.size} 個時段
                     </p>
-                    {bestByDate.slice(0, 6).map(({ date, hours, users }) => (
+                    {bestByDate.slice(0, 6).map(({ date, slots, users }) => (
                       <div key={date} className="rounded-2xl border border-brand-300/40 bg-brand-50 p-3">
                         <p className="mb-2 text-xs font-semibold text-brand-700">
                           {formatDateLabel(date)}
                         </p>
                         <div className="mb-2 flex flex-wrap gap-1">
-                          {hoursToRanges(hours).map(({ start, end }) => (
-                            <span
-                              key={start}
-                              className="rounded-lg bg-brand-400/15 px-2 py-0.5 text-xs font-medium text-brand-700"
-                            >
-                              {start === end
-                                ? <HourLabel hour={start} />
-                                : <><HourLabel hour={start} />–<HourLabel hour={end + 1} /></>}
-                            </span>
-                          ))}
+                          {slotsToRanges(slots, slotMinutes).map(({ start, end }) => {
+                            const startLabel = start.minute === 0
+                              ? formatHourLabel(start.hour)
+                              : `${formatHourLabel(start.hour)}:30`;
+                            const endTotalMin = end.hour * 60 + end.minute + slotMinutes;
+                            const endHour = Math.floor(endTotalMin / 60);
+                            const endMin = endTotalMin % 60;
+                            const endLabel = endMin === 0
+                              ? formatHourLabel(endHour)
+                              : `${formatHourLabel(endHour)}:30`;
+                            const isSingle = start.hour === end.hour && start.minute === end.minute;
+                            return (
+                              <span
+                                key={`${start.hour}-${start.minute}`}
+                                className="rounded-lg bg-brand-400/15 px-2 py-0.5 text-xs font-medium text-brand-700"
+                              >
+                                {isSingle ? startLabel : `${startLabel}–${endLabel}`}
+                              </span>
+                            );
+                          })}
                         </div>
                         {users.length > 0 && (
                           <div className="flex flex-wrap gap-1">

@@ -22,8 +22,19 @@ export function getDatesInRange(startDate, endDate) {
   return dates;
 }
 
-export function buildSlotKey(date, hour) {
-  return `${date}T${String(hour).padStart(2, "0")}:00`;
+export function buildSlotKey(date, hour, minute = 0) {
+  return `${date}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+export function buildSlotsForRange(startHour, endHour, slotMinutes = 60) {
+  const slots = [];
+  for (let hour = startHour; hour <= endHour; hour++) {
+    slots.push({ hour, minute: 0 });
+    if (slotMinutes === 30) {
+      slots.push({ hour, minute: 30 });
+    }
+  }
+  return slots;
 }
 
 export function formatDateLabel(date) {
@@ -41,6 +52,11 @@ export function formatHourLabel(hour) {
 
 export function formatSlotLabel(slot) {
   const [date, time] = slot.split("T");
-  const hour = Number(time.split(":")[0]);
-  return `${formatDateLabel(date)} ${formatHourLabel(hour)}`;
+  const [hourStr, minuteStr] = time.split(":");
+  const hour = Number(hourStr);
+  const minute = Number(minuteStr);
+  const timeLabel = minute > 0
+    ? `${formatHourLabel(hour)}:${String(minute).padStart(2, "0")}`
+    : formatHourLabel(hour);
+  return `${formatDateLabel(date)} ${timeLabel}`;
 }

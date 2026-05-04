@@ -9,12 +9,12 @@ function uid() {
   return [...Array(10)].map(() => Math.floor(Math.random() * 16).toString(16)).join("");
 }
 
-export async function createEvent({ name, startDate, endDate, startHour = 0, endHour = 23 }) {
+export async function createEvent({ name, startDate, endDate, startHour = 0, endHour = 23, slotMinutes = 60 }) {
   const id = uid();
 
   const { error } = await supabase
     .from("events")
-    .insert({ id, name, start_date: startDate, end_date: endDate, start_hour: startHour, end_hour: endHour });
+    .insert({ id, name, start_date: startDate, end_date: endDate, start_hour: startHour, end_hour: endHour, slot_minutes: slotMinutes });
 
   if (error) throw new Error(error.message);
 
@@ -24,7 +24,7 @@ export async function createEvent({ name, startDate, endDate, startHour = 0, end
 export async function fetchEvent(eventId, userName) {
   const { data: event, error: eventError } = await supabase
     .from("events")
-    .select("id, name, start_date, end_date, start_hour, end_hour, created_at")
+    .select("id, name, start_date, end_date, start_hour, end_hour, slot_minutes, created_at")
     .eq("id", eventId)
     .single();
 
