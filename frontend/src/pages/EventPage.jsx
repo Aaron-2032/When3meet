@@ -86,6 +86,7 @@ export default function EventPage() {
   const isSavingRef = useRef(false);
   const isDraggingRef = useRef(false);
   const isExpiredRef = useRef(false);
+  const saveQueueRef = useRef(null);
 
   useEffect(() => {
     const storedName = window.localStorage.getItem(getStorageKey(id));
@@ -190,21 +191,28 @@ export default function EventPage() {
   async function persistSelection(slotsToSave) {
     if (!userName) { setIsNameDialogOpen(true); return; }
     setSaveError("");
-    setIsSaving(true);
+
+    if (isSavingRef.current) {
+      saveQueueRef.current = slotsToSave;
+      return;
+    }
+
     isSavingRef.current = true;
+    setIsSaving(true);
 
     try {
-      await saveAvailability(id, { userName, slots: [...slotsToSave].sort() });
-      const refreshed = await fetchEvent(id, userName);
-      setEventData(refreshed);
-      const normalized = new Set(refreshed.userAvailability || []);
-      selectedSlotsRef.current = normalized;
-      setSelectedSlots(normalized);
+      let pending = slotsToSave;
+      do {
+        saveQueueRef.current = null;
+        await saveAvailability(id, { userName, slots: [...pending].sort() });
+        pending = saveQueueRef.current;
+      } while (pending !== null);
     } catch (e) {
       setSaveError(e.message);
     } finally {
-      setIsSaving(false);
       isSavingRef.current = false;
+      saveQueueRef.current = null;
+      setIsSaving(false);
     }
   }
 
